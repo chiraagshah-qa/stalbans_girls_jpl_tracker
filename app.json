@@ -13,7 +13,9 @@
       "resizeMode": "contain",
       "backgroundColor": "#1a1a2e"
     },
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.gotsport.tracker"
@@ -25,6 +27,16 @@
       },
       "package": "com.gotsport.tracker"
     },
-    "plugins": ["expo-router"]
+    "plugins": [
+      "expo-router"
+    ],
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "dc1cca18-c647-4ecd-a628-aca630f0488d"
+      }
+    }
   }
 }

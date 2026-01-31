@@ -1,0 +1,25 @@
+apply plugin: 'com.android.library'
+
+group = 'host.exp.exponent'
+version = '14.0.11'
+
+def expoModulesCorePlugin = new File(project(":expo-modules-core").projectDir.absolutePath, "ExpoModulesCorePlugin.gradle")
+apply from: expoModulesCorePlugin
+applyKotlinExpoModulesCorePlugin()
+useCoreDependencies()
+useExpoPublishing()
+
+android {
+  namespace "expo.modules.font"
+  compileSdkVersion safeExtGet("compileSdkVersion", 34)
+  defaultConfig {
+    versionCode 29
+    versionName "14.0.11"
+    minSdkVersion safeExtGet("minSdkVersion", 21)
+    targetSdkVersion safeExtGet("targetSdkVersion", 34)
+  }
+}
+
+dependencies {
+  implementation 'com.facebook.react:react-android'
+}

@@ -1,7 +1,17 @@
+import { View, StyleSheet } from 'react-native';
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useFonts } from 'expo-font';
 
 export default function TabLayout() {
+  const [fontsLoaded] = useFonts({
+    ...Ionicons.font,
+  });
+
+  if (!fontsLoaded) {
+    return <View style={styles.loading} />;
+  }
+
   return (
     <Tabs
       screenOptions={{
@@ -57,6 +67,10 @@ export default function TabLayout() {
           ),
         }}
       />
-    </Tabs>
+      </Tabs>
   );
 }
+
+const styles = StyleSheet.create({
+  loading: { flex: 1, backgroundColor: '#0a2463' },
+});
