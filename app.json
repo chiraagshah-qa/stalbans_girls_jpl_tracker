@@ -1,0 +1,30 @@
+{
+  "expo": {
+    "name": "GotSport Tracker",
+    "slug": "gotsport-tracker-app",
+    "version": "1.0.0",
+    "scheme": "gotsport",
+    "newArchEnabled": true,
+    "orientation": "portrait",
+    "icon": "./assets/st-albans.webp",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/st-albans.webp",
+      "resizeMode": "contain",
+      "backgroundColor": "#1a1a2e"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.gotsport.tracker"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/st-albans.webp",
+        "backgroundColor": "#1a1a2e"
+      },
+      "package": "com.gotsport.tracker"
+    },
+    "plugins": ["expo-router"]
+  }
+}
