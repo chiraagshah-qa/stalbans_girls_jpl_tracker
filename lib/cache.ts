@@ -8,6 +8,8 @@ export async function getCachedGroupData(groupId: string): Promise<{
   standings: Standing[];
   results: ResultsData;
   fixtures: Fixture[];
+  updatedAt?: number;
+  leagueName?: string;
 } | null> {
   try {
     const raw = await AsyncStorage.getItem(CACHE_KEY(groupId));
@@ -18,6 +20,8 @@ export async function getCachedGroupData(groupId: string): Promise<{
         standings: data.standings,
         results: data.results,
         fixtures: Array.isArray(data.fixtures) ? data.fixtures : [],
+        updatedAt: typeof data.updatedAt === 'number' ? data.updatedAt : undefined,
+        leagueName: typeof data.leagueName === 'string' ? data.leagueName : undefined,
       };
     }
     return null;
@@ -30,12 +34,13 @@ export async function setCachedGroupData(
   groupId: string,
   standings: Standing[],
   results: ResultsData,
-  fixtures: Fixture[]
+  fixtures: Fixture[],
+  leagueName?: string
 ): Promise<void> {
   try {
     await AsyncStorage.setItem(
       CACHE_KEY(groupId),
-      JSON.stringify({ standings, results, fixtures })
+      JSON.stringify({ standings, results, fixtures, updatedAt: Date.now(), leagueName: leagueName ?? '' })
     );
   } catch {}
 }

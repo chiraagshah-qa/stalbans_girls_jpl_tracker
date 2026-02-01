@@ -56,7 +56,7 @@ export default function ResultsScreen() {
       const data = await scrapeGroup(undefined, groupId);
       setResults(data.results);
       setStandings(data.standings);
-      await setCachedGroupData(groupId, data.standings, data.results, data.fixtures);
+      await setCachedGroupData(groupId, data.standings, data.results, data.fixtures, data.leagueName);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load results');
     } finally {

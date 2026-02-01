@@ -263,6 +263,15 @@ export function parseFixtures(html: string): Fixture[] {
   return fixtures;
 }
 
+/** Parse league/group name from results page (e.g. "Female U14 - Orange") */
+export function parseLeagueName(html: string): string {
+  const root = parse(html);
+  const lead = root.querySelector('.lead');
+  if (!lead) return '';
+  const raw = (lead.textContent || lead.text || '').trim();
+  return raw.replace(/\s+/g, ' ').trim();
+}
+
 export function parseStandings(html: string, eventId: string = DEFAULT_EVENT_ID): Standing[] {
   const root = parse(html);
   const standings: Standing[] = [];
@@ -346,16 +355,17 @@ export function parseResultsMatrix(html: string): ResultsData {
 export async function scrapeGroup(
   eventId: string = DEFAULT_EVENT_ID,
   groupId: string = DEFAULT_GROUP_ID
-): Promise<{ standings: Standing[]; results: ResultsData; fixtures: Fixture[] }> {
+): Promise<{ standings: Standing[]; results: ResultsData; fixtures: Fixture[]; leagueName: string }> {
   const html = await fetchResultsPage(eventId, groupId);
   const standings = parseStandings(html, eventId);
   const results = parseResultsMatrix(html);
+  const leagueName = parseLeagueName(html);
   const scheduleHtml =
     groupId === DEFAULT_GROUP_ID
       ? await fetchTeamSchedulePage(eventId, TEAM_ID_U14)
       : await fetchSchedulePage(eventId, groupId);
   const fixtures = parseFixtures(scheduleHtml);
-  return { standings, results, fixtures };
+  return { standings, results, fixtures, leagueName };
 }
 
 export async function scrapeFixtures(

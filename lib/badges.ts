@@ -28,23 +28,50 @@ const LOCAL_BADGES: { key: string; source: ImageSourcePropType }[] = [
   { key: 'Prestbury Phantoms', source: prestburyPhantoms },
 ];
 
-/** Display name overrides (e.g. shorten GotSport names for UI) */
+/** Words to remove from team names (age/gender) */
+const STRIP_WORDS = /\b(U14|U14s|U16|U16s|Girls)\b/gi;
+
+function stripWords(s: string): string {
+  return s.replace(STRIP_WORDS, ' ').replace(/\s+/g, ' ').trim();
+}
+
+/** Shorten for display: remove U14/U16/Girls, format "Club - Team name" when present */
+export function shortenTeamName(name: string): string {
+  const trimmed = name.trim();
+  if (!trimmed) return '';
+  const dash = ' - ';
+  const idx = trimmed.indexOf(dash);
+  if (idx !== -1) {
+    const club = stripWords(trimmed.slice(0, idx));
+    const teamPart = stripWords(trimmed.slice(idx + dash.length));
+    if (teamPart) return `${club} - ${teamPart}`;
+    return club || trimmed;
+  }
+  return stripWords(trimmed) || trimmed;
+}
+
+/** Display name overrides (e.g. shorten GotSport names for UI). Returned as-is (not shortened). */
 const DISPLAY_NAME_MAP: Record<string, string> = {
-  'Milton Keynes Dons SET - Girls Milton Keynes Dons Girls Performance U14s': 'MK Dons Performance U14s',
+  'Milton Keynes Dons SET - Girls Milton Keynes Dons Girls Performance U14s': 'MK Dons - Performance',
 };
 const DISPLAY_NAME_PATTERNS: { pattern: RegExp; display: string }[] = [
-  { pattern: /Milton Keynes Dons/i, display: 'MK Dons Performance U14s' },
+  { pattern: /Milton Keynes Dons/i, display: 'MK Dons - Performance' },
+  { pattern: /Capital\s*Girls/i, display: 'Capital Girls' },
+  { pattern: /Luton Town Ladies/i, display: 'Luton Town Ladies FC - Wanderers' },
+  { pattern: /Atletico London/i, display: 'Athletico London - Dragons' },
+  { pattern: /Prestbury Phantoms/i, display: 'Prestbury Phantoms AFC - Trojans' },
 ];
 
 export function getDisplayTeamName(teamName: string | null | undefined): string {
   if (teamName == null || typeof teamName !== 'string') return '';
   const name = teamName.trim();
   if (!name) return '';
-  if (DISPLAY_NAME_MAP[name]) return stripYouth(DISPLAY_NAME_MAP[name]);
+  const mapResult = DISPLAY_NAME_MAP[name];
+  if (mapResult !== undefined) return mapResult;
   for (const { pattern, display } of DISPLAY_NAME_PATTERNS) {
-    if (pattern.test(name)) return stripYouth(display);
+    if (pattern.test(name)) return display;
   }
-  return stripYouth(name);
+  return shortenTeamName(name);
 }
 
 function stripYouth(s: string): string {

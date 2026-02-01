@@ -89,7 +89,7 @@ export default function FixturesScreen() {
         setFixtures(fixturesFromDateAll);
         const cached = await getCachedGroupData(groupId);
         if (cached) {
-          await setCachedGroupData(groupId, cached.standings, cached.results, fixturesFromDateAll);
+          await setCachedGroupData(groupId, cached.standings, cached.results, fixturesFromDateAll, cached.leagueName);
         }
       }
     } catch (e) {

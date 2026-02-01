@@ -105,7 +105,7 @@ export default function LandingScreen() {
       ]);
       setStandings(groupData.standings);
       setFixtures(fixturesData);
-      await setCachedGroupData(groupId, groupData.standings, groupData.results, groupData.fixtures);
+      await setCachedGroupData(groupId, groupData.standings, groupData.results, groupData.fixtures, groupData.leagueName);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load data');
     } finally {
@@ -156,7 +156,7 @@ export default function LandingScreen() {
         <View style={styles.pickBlock}>
           <Text style={styles.pickTitle}>Choose your team</Text>
           <Text style={styles.pickSubtitle}>
-            Select your age group to see standings and fixtures.
+            Select your age group to see table and fixtures.
           </Text>
           <View style={styles.divisionRow}>
             {DIVISIONS.map((div) => (
@@ -276,12 +276,12 @@ export default function LandingScreen() {
           <>
             <View style={styles.tileRow}>
               <TeamBadge teamName={lastResult.home} size={32} />
-              <Text style={styles.tileTeamLabel} numberOfLines={1}>{lastResult.home}</Text>
+              <Text style={styles.tileTeamLabel} numberOfLines={1}>{getDisplayTeamName(lastResult.home)}</Text>
             </View>
             <Text style={styles.tileScore}>{lastResult.score}</Text>
             <View style={styles.tileRow}>
               <TeamBadge teamName={lastResult.away} size={32} />
-              <Text style={styles.tileTeamLabel} numberOfLines={1}>{lastResult.away}</Text>
+              <Text style={styles.tileTeamLabel} numberOfLines={1}>{getDisplayTeamName(lastResult.away)}</Text>
             </View>
             <Text style={styles.tileMeta}>{lastResult.date}{lastResult.time ? ` · ${formatTimeForDisplay(lastResult.time)}` : ''}</Text>
           </>

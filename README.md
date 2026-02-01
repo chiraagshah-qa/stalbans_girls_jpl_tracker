@@ -1,13 +1,13 @@
 # GotSport Tracker
 
-A React Native (Expo) app for tracking football scores, league standings, and fixtures from [GotSport](https://system.gotsport.com). Built for St Albans City FC Academy supporters (U14/U16).
+A React Native (Expo) app for tracking football scores, league table, and fixtures from [GotSport](https://system.gotsport.com). Built for St Albans City FC Academy supporters (U14/U16).
 
 **Note:** This app is in development and is not official.
 
 ## Features
 
 - **Home** – League position, last result, next fixture, today’s and upcoming fixtures
-- **Standings** – Full league table (P, W, D, L, GF, GA, GD, PTS) with team crests
+- **Table** – Full league table (P, W, D, L, GF, GA, GD, PTS) with team crests
 - **Results** – Recent results with opponent crests
 - **Fixtures** – Fixtures for the next 15 days with home/away crests and scores
 - **Settings** – Choose age group (U14 / U16); data is cached locally
@@ -65,7 +65,7 @@ The **preview** profile produces an APK for direct install. Use **production** f
 
 ```
 app/                 # Expo Router app entry and tabs
-  (tabs)/            # Home, Standings, Results, Fixtures, Settings
+  (tabs)/            # Home, Table, Results, Fixtures, Settings
 components/          # TeamBadge, ScheduleMatchList
 lib/                 # badges, cache, scraper, teamCrests
 assets/              # Team crests and images
