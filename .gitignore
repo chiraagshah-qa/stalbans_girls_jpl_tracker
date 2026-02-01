@@ -13,3 +13,4 @@ npm-debug.log*
 *.keystore
 .DS_Store
 .vscode
+test-results/
