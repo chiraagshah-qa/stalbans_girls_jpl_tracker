@@ -17,6 +17,7 @@ import {
   getGroupIdForTeam,
   getStAlbansTeamInDivision,
   formatTimeForDisplay,
+  parseFixtureDate,
   type Standing,
   type Fixture,
 } from '../../lib/scraper';
@@ -28,12 +29,6 @@ import { ScheduleMatchList } from '../../components/ScheduleMatchList';
 const FAVOURITE_STORAGE_KEY = 'gotsport_favourite_team';
 const LOGO_SIZE = 64;
 const DIVISIONS = ['U14', 'U16'] as const;
-
-function parseFixtureDate(f: Fixture): number {
-  if (!f.date || f.date === 'TBD') return NaN;
-  const d = new Date(f.date.replace(/\s*,?\s*/, ' '));
-  return isNaN(d.getTime()) ? NaN : d.getTime();
-}
 
 function isTeamInFixture(fixture: Fixture, teamName: string, division: string | null): boolean {
   if (!teamName) return false;
@@ -110,7 +105,7 @@ export default function LandingScreen() {
       ]);
       setStandings(groupData.standings);
       setFixtures(fixturesData);
-      await setCachedGroupData(groupId, groupData.standings, groupData.results, groupData.fixtures, groupData.leagueName);
+      await setCachedGroupData(groupId, groupData.standings, groupData.results, fixturesData, groupData.leagueName);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load data');
     } finally {
