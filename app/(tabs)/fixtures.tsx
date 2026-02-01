@@ -14,7 +14,7 @@ import {
   scrapeFixtures,
   getGroupIdForTeam,
   formatTimeForDisplay,
-  parseFixtureDate as parseFixtureDateScraper,
+  parseFixtureDate,
   type Fixture,
 } from '../../lib/scraper';
 import { getCachedGroupData, setCachedGroupData } from '../../lib/cache';
@@ -23,10 +23,6 @@ import { TeamBadge } from '../../components/TeamBadge';
 
 const FAVOURITE_STORAGE_KEY = 'gotsport_favourite_team';
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
-
-function parseFixtureDate(f: Fixture): number {
-  return parseFixtureDateScraper(f);
-}
 
 /** YYYY-MM-DD in local time for reliable date-only comparison */
 function toDateString(d: Date): string {

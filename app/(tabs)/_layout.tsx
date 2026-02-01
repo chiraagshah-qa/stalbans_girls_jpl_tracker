@@ -1,17 +1,7 @@
-import { View, StyleSheet } from 'react-native';
 import { Tabs } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
-import { useFonts } from 'expo-font';
+import { TabIcons } from '../../components/TabIcons';
 
 export default function TabLayout() {
-  const [fontsLoaded] = useFonts({
-    ...Ionicons.font,
-  });
-
-  if (!fontsLoaded) {
-    return <View style={styles.loading} />;
-  }
-
   return (
     <Tabs
       screenOptions={{
@@ -26,9 +16,7 @@ export default function TabLayout() {
         name="index"
         options={{
           title: 'Home',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="home-outline" size={size} color={color} />
-          ),
+          tabBarIcon: ({ color, size }) => <TabIcons name="home" color={color} size={size} />,
         }}
       />
       <Tabs.Screen
@@ -36,42 +24,30 @@ export default function TabLayout() {
         options={{
           title: 'Table',
           tabBarLabel: 'Table',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="trophy-outline" size={size} color={color} />
-          ),
+          tabBarIcon: ({ color, size }) => <TabIcons name="trophy" color={color} size={size} />,
         }}
       />
       <Tabs.Screen
         name="results"
         options={{
           title: 'Results',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="grid-outline" size={size} color={color} />
-          ),
+          tabBarIcon: ({ color, size }) => <TabIcons name="grid" color={color} size={size} />,
         }}
       />
       <Tabs.Screen
         name="fixtures"
         options={{
           title: 'Fixtures',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="calendar-outline" size={size} color={color} />
-          ),
+          tabBarIcon: ({ color, size }) => <TabIcons name="calendar" color={color} size={size} />,
         }}
       />
       <Tabs.Screen
         name="settings"
         options={{
           title: 'Settings',
-          tabBarIcon: ({ color, size }) => (
-            <Ionicons name="settings-outline" size={size} color={color} />
-          ),
+          tabBarIcon: ({ color, size }) => <TabIcons name="settings" color={color} size={size} />,
         }}
       />
-      </Tabs>
+    </Tabs>
   );
 }
-
-const styles = StyleSheet.create({
-  loading: { flex: 1, backgroundColor: '#0a2463' },
-});

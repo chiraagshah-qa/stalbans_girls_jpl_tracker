@@ -74,10 +74,6 @@ export function getDisplayTeamName(teamName: string | null | undefined): string 
   return shortenTeamName(name);
 }
 
-function stripYouth(s: string): string {
-  return s.replace(/\s*youth\s*/gi, ' ').replace(/\s+/g, ' ').trim();
-}
-
 export function getBadgeSource(teamName: string | null | undefined): ImageSourcePropType | null {
   if (teamName == null || typeof teamName !== 'string') return null;
   const name = teamName.trim();
