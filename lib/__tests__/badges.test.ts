@@ -2,6 +2,7 @@ import {
   shortenTeamName,
   getDisplayTeamName,
   getTeamInitials,
+  getBadgeSource,
 } from '../badges';
 
 describe('shortenTeamName', () => {
@@ -47,5 +48,32 @@ describe('getTeamInitials', () => {
 
   it('returns first two chars for single word', () => {
     expect(getTeamInitials('Stevenage')).toBe('ST');
+  });
+});
+
+describe('getBadgeSource', () => {
+  it('returns null for null or undefined', () => {
+    expect(getBadgeSource(null)).toBeNull();
+    expect(getBadgeSource(undefined)).toBeNull();
+  });
+
+  it('returns null for empty or whitespace string', () => {
+    expect(getBadgeSource('')).toBeNull();
+    expect(getBadgeSource('   ')).toBeNull();
+  });
+
+  it('returns source when team name matches TEAM_CREST_SOURCES key', () => {
+    const source = getBadgeSource('Oxford City FC U14 Girls');
+    expect(source).not.toBeNull();
+    expect(typeof source).toBe('object');
+  });
+
+  it('returns source when team name includes LOCAL_BADGES key', () => {
+    const source = getBadgeSource('St Albans City U14');
+    expect(source).not.toBeNull();
+  });
+
+  it('returns null for unknown team name', () => {
+    expect(getBadgeSource('Unknown FC 123')).toBeNull();
   });
 });

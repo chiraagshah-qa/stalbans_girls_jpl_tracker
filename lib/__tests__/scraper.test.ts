@@ -3,10 +3,16 @@ import {
   parseFixtureDate,
   formatTimeForDisplay,
   getStAlbansTeamInDivision,
+  getSchedulePageUrl,
+  getGroupScheduleDateAllUrl,
   DEFAULT_GROUP_ID,
   GROUP_ID_U16,
+  TEAM_ID_U14,
   type Standing,
 } from '../scraper';
+
+const GOTSPORT_BASE = 'https://system.gotsport.com';
+const DEFAULT_EVENT_ID = '46915';
 
 describe('getGroupIdForTeam', () => {
   it('returns U16 group id when team name includes U16', () => {
@@ -82,5 +88,36 @@ describe('getStAlbansTeamInDivision', () => {
 
   it('returns null when no St Albans in division', () => {
     expect(getStAlbansTeamInDivision(standings, 'U16')).toBeNull();
+  });
+});
+
+describe('getSchedulePageUrl', () => {
+  it('returns team schedule URL for default group with teamId', () => {
+    const url = getSchedulePageUrl(DEFAULT_EVENT_ID, DEFAULT_GROUP_ID, TEAM_ID_U14);
+    expect(url).toBe(`${ GOTSPORT_BASE }/org_event/events/${ DEFAULT_EVENT_ID }/schedules?team=${ TEAM_ID_U14 }`);
+  });
+
+  it('returns team schedule URL for default group without teamId', () => {
+    const url = getSchedulePageUrl(DEFAULT_EVENT_ID, DEFAULT_GROUP_ID);
+    expect(url).toContain('schedules?team=');
+    expect(url).toContain(GOTSPORT_BASE);
+  });
+
+  it('returns group schedule URL for non-default group', () => {
+    const url = getSchedulePageUrl(DEFAULT_EVENT_ID, GROUP_ID_U16);
+    expect(url).toBe(`${ GOTSPORT_BASE }/org_event/events/${ DEFAULT_EVENT_ID }/schedules?group=${ GROUP_ID_U16 }`);
+  });
+});
+
+describe('getGroupScheduleDateAllUrl', () => {
+  it('returns schedule date=All URL for event and group', () => {
+    const url = getGroupScheduleDateAllUrl(DEFAULT_EVENT_ID, DEFAULT_GROUP_ID);
+    expect(url).toBe(`${ GOTSPORT_BASE }/org_event/events/${ DEFAULT_EVENT_ID }/schedules?date=All&group=${ DEFAULT_GROUP_ID }`);
+  });
+
+  it('uses default event and group when not provided', () => {
+    const url = getGroupScheduleDateAllUrl();
+    expect(url).toContain('date=All');
+    expect(url).toContain(`group=${ DEFAULT_GROUP_ID }`);
   });
 });

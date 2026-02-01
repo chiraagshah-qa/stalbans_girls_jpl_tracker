@@ -28,9 +28,9 @@ import { ScheduleMatchList } from '../../components/ScheduleMatchList';
 
 const FAVOURITE_STORAGE_KEY = 'gotsport_favourite_team';
 const LOGO_SIZE = 64;
-const DIVISIONS = ['U14', 'U16'] as const;
+const DIVISIONS = [ 'U14', 'U16' ] as const;
 
-function isTeamInFixture(fixture: Fixture, teamName: string, division: string | null): boolean {
+function isTeamInFixture (fixture: Fixture, teamName: string, division: string | null): boolean {
   if (!teamName) return false;
   const home = fixture.home.trim();
   const away = fixture.away.trim();
@@ -51,26 +51,30 @@ function isTeamInFixture(fixture: Fixture, teamName: string, division: string | 
   );
 }
 
-function isRainedOut(f: Fixture): boolean {
-  const s = [f.status, f.time].filter(Boolean).join(' ');
+function isRainedOut (f: Fixture): boolean {
+  const s = [ f.status, f.time ].filter(Boolean).join(' ');
   return /rained\s*out/i.test(s);
 }
 
-function formatPosition(rank: number): string {
+function isDiscipline (f: Fixture): boolean {
+  return /discipline/i.test(f.status || '');
+}
+
+function formatPosition (rank: number): string {
   if (rank === 1) return '1st';
   if (rank === 2) return '2nd';
   if (rank === 3) return '3rd';
-  return `${rank}th`;
+  return `${ rank }th`;
 }
 
-export default function LandingScreen() {
-  const [hydrating, setHydrating] = useState(true);
-  const [favouriteTeam, setFavouriteTeam] = useState<string | null>(null);
-  const [standings, setStandings] = useState<Standing[]>([]);
-  const [fixtures, setFixtures] = useState<Fixture[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+export default function LandingScreen () {
+  const [ hydrating, setHydrating ] = useState(true);
+  const [ favouriteTeam, setFavouriteTeam ] = useState<string | null>(null);
+  const [ standings, setStandings ] = useState<Standing[]>([]);
+  const [ fixtures, setFixtures ] = useState<Fixture[]>([]);
+  const [ loading, setLoading ] = useState(true);
+  const [ refreshing, setRefreshing ] = useState(false);
+  const [ error, setError ] = useState<string | null>(null);
 
   const loadFavourite = async () => {
     try {
@@ -99,7 +103,7 @@ export default function LandingScreen() {
     else if (!hadCache) setLoading(true);
     setError(null);
     try {
-      const [groupData, fixturesData] = await Promise.all([
+      const [ groupData, fixturesData ] = await Promise.all([
         scrapeGroup(undefined, groupId),
         scrapeFixtures(undefined, groupId),
       ]);
@@ -122,7 +126,7 @@ export default function LandingScreen() {
 
   useEffect(() => {
     if (favouriteTeam) loadData();
-  }, [favouriteTeam]);
+  }, [ favouriteTeam ]);
 
   useEffect(() => {
     const sub = AppState.addEventListener('change', (nextState) => {
@@ -132,43 +136,43 @@ export default function LandingScreen() {
       appState.current = nextState;
     });
     return () => sub.remove();
-  }, [favouriteTeam]);
+  }, [ favouriteTeam ]);
 
   const saveFavourite = async (division: string) => {
     try {
       await AsyncStorage.setItem(FAVOURITE_STORAGE_KEY, division);
       setFavouriteTeam(division);
-    } catch {}
+    } catch { }
   };
 
   if (hydrating) {
     return (
-      <View style={styles.centerContainer}>
+      <View style={ styles.centerContainer }>
         <ActivityIndicator size="large" color="#FFD700" />
-        <Text style={styles.loadingText}>Loading…</Text>
+        <Text style={ styles.loadingText }>Loading…</Text>
       </View>
     );
   }
 
   if (!favouriteTeam) {
     return (
-      <ScrollView style={styles.container} contentContainerStyle={styles.pickScroll}>
-        <View style={styles.pickBlock}>
-          <Text style={styles.pickTitle}>Choose your team</Text>
-          <Text style={styles.pickSubtitle}>
+      <ScrollView style={ styles.container } contentContainerStyle={ styles.pickScroll }>
+        <View style={ styles.pickBlock }>
+          <Text style={ styles.pickTitle }>Choose your team</Text>
+          <Text style={ styles.pickSubtitle }>
             Select your age group to see table and fixtures.
           </Text>
-          <View style={styles.divisionRow}>
-            {DIVISIONS.map((div) => (
+          <View style={ styles.divisionRow }>
+            { DIVISIONS.map((div) => (
               <TouchableOpacity
-                key={div}
-                style={styles.divisionOption}
-                onPress={() => saveFavourite(div)}
-                activeOpacity={0.7}
+                key={ div }
+                style={ styles.divisionOption }
+                onPress={ () => saveFavourite(div) }
+                activeOpacity={ 0.7 }
               >
-                <Text style={styles.divisionOptionText}>{div}</Text>
+                <Text style={ styles.divisionOptionText }>{ div }</Text>
               </TouchableOpacity>
-            ))}
+            )) }
           </View>
         </View>
       </ScrollView>
@@ -195,7 +199,7 @@ export default function LandingScreen() {
   const todayStartMs = todayStart.getTime();
   const todayEnd = todayStartMs + oneDay;
   const fixturesWithDate = fixtures.filter((f) => !isNaN(parseDate(f)));
-  const fixturesAsc = [...fixturesWithDate].sort(
+  const fixturesAsc = [ ...fixturesWithDate ].sort(
     (a, b) => parseDate(a) - parseDate(b)
   );
   const allForTeam =
@@ -203,14 +207,14 @@ export default function LandingScreen() {
       isTeamInFixture(f, badgeTeamName, favouriteTeam)
     ).length > 0
       ? fixtures.filter((f) =>
-          isTeamInFixture(f, badgeTeamName, favouriteTeam)
-        )
+        isTeamInFixture(f, badgeTeamName, favouriteTeam)
+      )
       : fixtures.filter(
-          (f) =>
-            (f.home && f.home.includes(favouriteTeam)) ||
-            (f.away && f.away.includes(favouriteTeam))
-        );
-  const forTeamAsc = [...allForTeam].sort((a, b) => {
+        (f) =>
+          (f.home && f.home.includes(favouriteTeam)) ||
+          (f.away && f.away.includes(favouriteTeam))
+      );
+  const forTeamAsc = [ ...allForTeam ].sort((a, b) => {
     const ta = parseDate(a);
     const tb = parseDate(b);
     if (isNaN(ta) && isNaN(tb)) return 0;
@@ -219,28 +223,28 @@ export default function LandingScreen() {
     return ta - tb;
   });
   const isPast = (f: Fixture) =>
-    parseDate(f) < todayStartMs || isRainedOut(f);
+    parseDate(f) < todayStartMs || isRainedOut(f) || isDiscipline(f);
   const nextFixture =
-    forTeamAsc.find((f) => !isRainedOut(f) && parseDate(f) >= todayStartMs) ??
-    forTeamAsc.find((f) => !isRainedOut(f) && !f.score && !f.played) ??
+    forTeamAsc.find((f) => !isRainedOut(f) && !isDiscipline(f) && parseDate(f) >= todayStartMs) ??
+    forTeamAsc.find((f) => !isRainedOut(f) && !isDiscipline(f) && !f.score && !f.played) ??
     null;
   const pastWithResult = allForTeam.filter(
     (f) =>
-      isPast(f) && (f.score || f.played || isRainedOut(f))
+      isPast(f) && (f.score || f.played || isRainedOut(f) || isDiscipline(f))
   );
   const mostRecentPast = (list: Fixture[]): Fixture | null => {
     if (list.length === 0) return null;
     const withDate = list
       .map((f) => ({ f, d: parseDate(f) }))
       .filter(({ d }) => !isNaN(d));
-    if (withDate.length === 0) return list[0];
+    if (withDate.length === 0) return list[ 0 ];
     return withDate.reduce((best, x) =>
       x.d > best.d ? x : best
     ).f;
   };
   const lastResult =
     mostRecentPast(pastWithResult) ??
-    mostRecentPast(allForTeam.filter((f) => f.score || f.played || isRainedOut(f))) ??
+    mostRecentPast(allForTeam.filter((f) => f.score || f.played || isRainedOut(f) || isDiscipline(f))) ??
     mostRecentPast(allForTeam.filter(isPast));
   const todayFixtures = fixturesAsc.filter((f) => {
     const t = parseDate(f);
@@ -252,20 +256,20 @@ export default function LandingScreen() {
 
   if (loading && standings.length === 0) {
     return (
-      <View style={styles.centerContainer}>
+      <View style={ styles.centerContainer }>
         <ActivityIndicator size="large" color="#FFD700" />
-        <Text style={styles.loadingText}>Loading…</Text>
+        <Text style={ styles.loadingText }>Loading…</Text>
       </View>
     );
   }
 
   if (error && standings.length === 0) {
     return (
-      <ScrollView style={styles.container} contentContainerStyle={styles.centerContainer}>
-        <Text style={styles.errorText}>{error}</Text>
-        <Text style={styles.retryHint}>Pull down to retry</Text>
-        <TouchableOpacity style={styles.retryBtn} onPress={() => loadData(true)}>
-          <Text style={styles.retryBtnText}>Retry</Text>
+      <ScrollView style={ styles.container } contentContainerStyle={ styles.centerContainer }>
+        <Text style={ styles.errorText }>{ error }</Text>
+        <Text style={ styles.retryHint }>Pull down to retry</Text>
+        <TouchableOpacity style={ styles.retryBtn } onPress={ () => loadData(true) }>
+          <Text style={ styles.retryBtnText }>Retry</Text>
         </TouchableOpacity>
       </ScrollView>
     );
@@ -273,11 +277,11 @@ export default function LandingScreen() {
 
   if (!loading && !error && standings.length === 0 && fixtures.length === 0) {
     return (
-      <ScrollView style={styles.container} contentContainerStyle={styles.centerContainer}>
-        <Text style={styles.emptyTitle}>No data loaded</Text>
-        <Text style={styles.emptyText}>Pull down to refresh from GotSport.</Text>
-        <TouchableOpacity style={styles.retryBtn} onPress={() => loadData(true)}>
-          <Text style={styles.retryBtnText}>Retry</Text>
+      <ScrollView style={ styles.container } contentContainerStyle={ styles.centerContainer }>
+        <Text style={ styles.emptyTitle }>No data loaded</Text>
+        <Text style={ styles.emptyText }>Pull down to refresh from GotSport.</Text>
+        <TouchableOpacity style={ styles.retryBtn } onPress={ () => loadData(true) }>
+          <Text style={ styles.retryBtnText }>Retry</Text>
         </TouchableOpacity>
       </ScrollView>
     );
@@ -285,80 +289,81 @@ export default function LandingScreen() {
 
   return (
     <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.content}
+      style={ styles.container }
+      contentContainerStyle={ styles.content }
       refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={() => loadData(true)} />
+        <RefreshControl refreshing={ refreshing } onRefresh={ () => loadData(true) } />
       }
     >
-      <View style={styles.logoBlock}>
-        <TeamBadge teamName={badgeTeamName} size={LOGO_SIZE} />
-        {favouriteTeam && (
-          <Text style={styles.ageGroupLabel}>{favouriteTeam}</Text>
-        )}
+      <View style={ styles.logoBlock }>
+        <TeamBadge teamName={ badgeTeamName } size={ LOGO_SIZE } />
+        { favouriteTeam && (
+          <Text style={ styles.ageGroupLabel }>{ favouriteTeam }</Text>
+        ) }
       </View>
-      {myStanding && (
-        <View style={styles.positionCard}>
-          <Text style={styles.positionLabel}>LEAGUE POSITION:</Text>
-          <Text style={styles.positionValue}>{formatPosition(myStanding.rank)}</Text>
-          <Text style={styles.positionData}>
-            {myStanding.PTS} pts · GD {myStanding.GD >= 0 ? '+' : ''}{myStanding.GD}
+      { myStanding && (
+        <View style={ styles.positionCard }>
+          <Text style={ styles.positionLabel }>LEAGUE POSITION:</Text>
+          <Text style={ styles.positionValue }>{ formatPosition(myStanding.rank) }</Text>
+          <Text style={ styles.positionData }>
+            { myStanding.PTS } pts · GD { myStanding.GD >= 0 ? '+' : '' }{ myStanding.GD }
           </Text>
         </View>
-      )}
-      <View style={styles.tile}>
-        <Text style={styles.tileTitle}>LAST RESULT:</Text>
-        {lastResult ? (
+      ) }
+      <View style={ styles.tile }>
+        <Text style={ styles.tileTitle }>LAST RESULT:</Text>
+        { lastResult ? (
           <>
-            <View style={styles.tileRow}>
-              <TeamBadge teamName={lastResult.home} size={32} />
-              <Text style={styles.tileTeamLabel} numberOfLines={1}>{getDisplayTeamName(lastResult.home)}</Text>
+            <View style={ styles.tileRow }>
+              <TeamBadge teamName={ lastResult.home } size={ 32 } />
+              <Text style={ styles.tileTeamLabel } numberOfLines={ 1 }>{ getDisplayTeamName(lastResult.home) }</Text>
             </View>
             <Text
-              style={[
+              style={ [
                 styles.tileScore,
                 isRainedOut(lastResult) && !lastResult.score && styles.tileScoreRainedOut,
-              ]}
+                isDiscipline(lastResult) && !lastResult.score && styles.tileScoreDiscipline,
+              ] }
             >
-              {lastResult.score ??
-                (isRainedOut(lastResult) ? 'RAINED OUT' : lastResult.status ?? '–')}
+              { lastResult.score ??
+                (isRainedOut(lastResult) ? 'RAINED OUT' : isDiscipline(lastResult) ? 'DISCIPLINE' : lastResult.status ?? '–') }
             </Text>
-            <View style={styles.tileRow}>
-              <TeamBadge teamName={lastResult.away} size={32} />
-              <Text style={styles.tileTeamLabel} numberOfLines={1}>{getDisplayTeamName(lastResult.away)}</Text>
+            <View style={ styles.tileRow }>
+              <TeamBadge teamName={ lastResult.away } size={ 32 } />
+              <Text style={ styles.tileTeamLabel } numberOfLines={ 1 }>{ getDisplayTeamName(lastResult.away) }</Text>
             </View>
-            <Text style={styles.tileMeta}>{lastResult.date}{lastResult.time ? ` · ${formatTimeForDisplay(lastResult.time)}` : ''}</Text>
+            <Text style={ styles.tileMeta }>{ lastResult.date }{ lastResult.time ? ` · ${ formatTimeForDisplay(lastResult.time) }` : '' }</Text>
           </>
         ) : (
-          <Text style={styles.tilePlaceholder}>No recent result</Text>
-        )}
+          <Text style={ styles.tilePlaceholder }>No recent result</Text>
+        ) }
       </View>
-      <View style={styles.tile}>
-        <Text style={styles.tileTitle}>NEXT FIXTURE:</Text>
-        {nextFixture ? (
+      <View style={ styles.tile }>
+        <Text style={ styles.tileTitle }>NEXT FIXTURE:</Text>
+        { nextFixture ? (
           <>
-            <View style={styles.tileRow}>
-              <TeamBadge teamName={nextFixture.home} size={32} />
-              <Text style={styles.tileTeamLabel} numberOfLines={1}>{getDisplayTeamName(nextFixture.home)}</Text>
+            <View style={ styles.tileRow }>
+              <TeamBadge teamName={ nextFixture.home } size={ 32 } />
+              <Text style={ styles.tileTeamLabel } numberOfLines={ 1 }>{ getDisplayTeamName(nextFixture.home) }</Text>
             </View>
-            <Text style={styles.tileVs}>vs</Text>
-            <View style={styles.tileRow}>
-              <TeamBadge teamName={nextFixture.away} size={32} />
-              <Text style={styles.tileTeamLabel} numberOfLines={1}>{getDisplayTeamName(nextFixture.away)}</Text>
+            <Text style={ styles.tileVs }>vs</Text>
+            <View style={ styles.tileRow }>
+              <TeamBadge teamName={ nextFixture.away } size={ 32 } />
+              <Text style={ styles.tileTeamLabel } numberOfLines={ 1 }>{ getDisplayTeamName(nextFixture.away) }</Text>
             </View>
-            <Text style={styles.tileMeta}>{nextFixture.date}{nextFixture.time ? ` · ${formatTimeForDisplay(nextFixture.time)}` : ''}</Text>
-            {nextFixture.location && <Text style={styles.tileLocation}>{nextFixture.location}</Text>}
+            <Text style={ styles.tileMeta }>{ nextFixture.date }{ nextFixture.time ? ` · ${ formatTimeForDisplay(nextFixture.time) }` : '' }</Text>
+            { nextFixture.location && <Text style={ styles.tileLocation }>{ nextFixture.location }</Text> }
           </>
         ) : (
-          <Text style={styles.tilePlaceholder}>No upcoming fixture</Text>
-        )}
+          <Text style={ styles.tilePlaceholder }>No upcoming fixture</Text>
+        ) }
       </View>
-      {displayFixtures.length > 0 && (
+      { displayFixtures.length > 0 && (
         <ScheduleMatchList
-          fixtures={displayFixtures}
-          title={todayFixtures.length > 0 ? "Today's fixtures" : 'Upcoming'}
+          fixtures={ displayFixtures }
+          title={ todayFixtures.length > 0 ? "Today's fixtures" : 'Upcoming' }
         />
-      )}
+      ) }
     </ScrollView>
   );
 }
@@ -426,6 +431,7 @@ const styles = StyleSheet.create({
   tileTeamLabel: { color: '#111', fontSize: 14, textAlign: 'center', maxWidth: '80%' },
   tileScore: { color: '#111', fontSize: 20, fontWeight: '700', textAlign: 'center', marginVertical: 6 },
   tileScoreRainedOut: { color: '#c0392b', textTransform: 'uppercase' },
+  tileScoreDiscipline: { color: '#856404', textTransform: 'uppercase' },
   tileVs: { color: '#666', fontSize: 12, textAlign: 'center', marginVertical: 2 },
   tileMeta: { color: '#666', fontSize: 12, marginTop: 8, textAlign: 'center' },
   tileLocation: { color: '#888', fontSize: 11, marginTop: 4, textAlign: 'center' },
