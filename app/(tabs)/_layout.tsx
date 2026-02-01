@@ -35,6 +35,7 @@ export default function TabLayout() {
         name="table"
         options={{
           title: 'Table',
+          tabBarLabel: 'Table',
           tabBarIcon: ({ color, size }) => (
             <Ionicons name="trophy-outline" size={size} color={color} />
           ),
