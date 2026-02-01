@@ -56,6 +56,11 @@ function isTeamInFixture(fixture: Fixture, teamName: string, division: string | 
   );
 }
 
+function isRainedOut(f: Fixture): boolean {
+  const s = [f.status, f.time].filter(Boolean).join(' ');
+  return /rained\s*out/i.test(s);
+}
+
 function formatPosition(rank: number): string {
   if (rank === 1) return '1st';
   if (rank === 2) return '2nd';
@@ -180,7 +185,6 @@ export default function LandingScreen() {
   const myStanding = standings.find(
     (s) => s.name.includes('St Albans') && s.name.includes(favouriteTeam)
   );
-  const now = Date.now();
   const oneDay = 24 * 60 * 60 * 1000;
   const parseDate = (f: Fixture): number => {
     const t = parseFixtureDate(f);
@@ -191,26 +195,63 @@ export default function LandingScreen() {
     }
     return NaN;
   };
-  const fixturesWithDate = fixtures
-    .filter((f) => !isNaN(parseDate(f)))
-    .sort((a, b) => parseDate(a) - parseDate(b));
   const todayStart = new Date();
   todayStart.setHours(0, 0, 0, 0);
-  const todayEnd = todayStart.getTime() + oneDay;
-  const todayFixtures = fixturesWithDate.filter((f) => {
-    const t = parseDate(f);
-    return t >= todayStart.getTime() && t < todayEnd;
+  const todayStartMs = todayStart.getTime();
+  const todayEnd = todayStartMs + oneDay;
+  const fixturesWithDate = fixtures.filter((f) => !isNaN(parseDate(f)));
+  const fixturesAsc = [...fixturesWithDate].sort(
+    (a, b) => parseDate(a) - parseDate(b)
+  );
+  const allForTeam =
+    fixtures.filter((f) =>
+      isTeamInFixture(f, badgeTeamName, favouriteTeam)
+    ).length > 0
+      ? fixtures.filter((f) =>
+          isTeamInFixture(f, badgeTeamName, favouriteTeam)
+        )
+      : fixtures.filter(
+          (f) =>
+            (f.home && f.home.includes(favouriteTeam)) ||
+            (f.away && f.away.includes(favouriteTeam))
+        );
+  const forTeamAsc = [...allForTeam].sort((a, b) => {
+    const ta = parseDate(a);
+    const tb = parseDate(b);
+    if (isNaN(ta) && isNaN(tb)) return 0;
+    if (isNaN(ta)) return 1;
+    if (isNaN(tb)) return -1;
+    return ta - tb;
   });
-  const isPlayed = (f: Fixture) => !!(f.score || f.played);
-  const playedFixtures = fixturesWithDate.filter((f) => isPlayed(f) && f.score);
-  const lastResult = playedFixtures.length > 0
-    ? playedFixtures.filter((f) => isTeamInFixture(f, badgeTeamName, favouriteTeam)).pop()
-    : fixtures.filter((f) => isPlayed(f) && f.score).filter((f) => isTeamInFixture(f, badgeTeamName, favouriteTeam)).pop() ?? null;
-  const futureFixtures = fixturesWithDate.filter((f) => parseDate(f) >= now && !isPlayed(f));
+  const isPast = (f: Fixture) =>
+    parseDate(f) < todayStartMs || isRainedOut(f);
   const nextFixture =
-    futureFixtures.find((f) => isTeamInFixture(f, badgeTeamName, favouriteTeam)) ??
-    fixtures.filter((f) => !isPlayed(f)).find((f) => isTeamInFixture(f, badgeTeamName, favouriteTeam)) ??
+    forTeamAsc.find((f) => !isRainedOut(f) && parseDate(f) >= todayStartMs) ??
+    forTeamAsc.find((f) => !isRainedOut(f) && !f.score && !f.played) ??
     null;
+  const pastWithResult = allForTeam.filter(
+    (f) =>
+      isPast(f) && (f.score || f.played || isRainedOut(f))
+  );
+  const mostRecentPast = (list: Fixture[]): Fixture | null => {
+    if (list.length === 0) return null;
+    const withDate = list
+      .map((f) => ({ f, d: parseDate(f) }))
+      .filter(({ d }) => !isNaN(d));
+    if (withDate.length === 0) return list[0];
+    return withDate.reduce((best, x) =>
+      x.d > best.d ? x : best
+    ).f;
+  };
+  const lastResult =
+    mostRecentPast(pastWithResult) ??
+    mostRecentPast(allForTeam.filter((f) => f.score || f.played || isRainedOut(f))) ??
+    mostRecentPast(allForTeam.filter(isPast));
+  const todayFixtures = fixturesAsc.filter((f) => {
+    const t = parseDate(f);
+    return t >= todayStartMs && t < todayEnd;
+  });
+  const futureFixtures = fixturesAsc.filter((f) => parseDate(f) >= todayStartMs);
   const displayFixtures =
     todayFixtures.length > 0 ? todayFixtures : futureFixtures.slice(0, 5);
 
@@ -278,7 +319,15 @@ export default function LandingScreen() {
               <TeamBadge teamName={lastResult.home} size={32} />
               <Text style={styles.tileTeamLabel} numberOfLines={1}>{getDisplayTeamName(lastResult.home)}</Text>
             </View>
-            <Text style={styles.tileScore}>{lastResult.score}</Text>
+            <Text
+              style={[
+                styles.tileScore,
+                isRainedOut(lastResult) && !lastResult.score && styles.tileScoreRainedOut,
+              ]}
+            >
+              {lastResult.score ??
+                (isRainedOut(lastResult) ? 'RAINED OUT' : lastResult.status ?? '–')}
+            </Text>
             <View style={styles.tileRow}>
               <TeamBadge teamName={lastResult.away} size={32} />
               <Text style={styles.tileTeamLabel} numberOfLines={1}>{getDisplayTeamName(lastResult.away)}</Text>
@@ -377,10 +426,11 @@ const styles = StyleSheet.create({
     borderColor: '#eee',
     alignItems: 'center',
   },
-  tileTitle: { color: '#666', fontSize: 15, fontWeight: '700', marginBottom: 10, textAlign: 'center', textTransform: 'uppercase' },
+  tileTitle: { color: '#666', fontSize: 15, marginBottom: 10, textAlign: 'center', textTransform: 'uppercase' },
   tileRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 4 },
   tileTeamLabel: { color: '#111', fontSize: 14, textAlign: 'center', maxWidth: '80%' },
   tileScore: { color: '#111', fontSize: 20, fontWeight: '700', textAlign: 'center', marginVertical: 6 },
+  tileScoreRainedOut: { color: '#c0392b', textTransform: 'uppercase' },
   tileVs: { color: '#666', fontSize: 12, textAlign: 'center', marginVertical: 2 },
   tileMeta: { color: '#666', fontSize: 12, marginTop: 8, textAlign: 'center' },
   tileLocation: { color: '#888', fontSize: 11, marginTop: 4, textAlign: 'center' },

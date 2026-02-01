@@ -6,8 +6,9 @@ export default function RootLayout() {
     <>
       {/* Light status bar (white icons/text) on both iOS and Android */}
       <StatusBar style="light" />
-      <Stack screenOptions={{ headerShown: false }}>
+      <Stack screenOptions={{ headerShown: false }} initialRouteName="(tabs)">
         <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="index" options={{ headerShown: false }} />
       </Stack>
     </>
   );
