@@ -61,6 +61,17 @@ Then open **Android** or **iOS** from the terminal, or scan the QR code with Exp
 
 The **preview** profile produces an APK for direct install. Use **production** for an AAB for the Play Store.
 
+## CI / GitHub Actions
+
+- **Tests** (`.github/workflows/tests.yml`): runs unit tests on every push and PR.
+- **EAS Build** (`.github/workflows/build.yml`): runs when the Tests workflow succeeds on **push to `main` or `master`**, and triggers EAS builds for **iOS and Android** (preview profile).
+
+To enable EAS builds in CI:
+
+1. Create an [Expo access token](https://expo.dev/accounts/[account]/settings/access-tokens).
+2. In your GitHub repo: **Settings** → **Secrets and variables** → **Actions** → **New repository secret**.
+3. Name: `EXPO_TOKEN`, Value: your Expo token.
+
 ## Project structure
 
 ```

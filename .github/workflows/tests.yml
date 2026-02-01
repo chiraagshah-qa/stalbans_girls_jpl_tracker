@@ -1,5 +1,4 @@
-# Run unit tests on every push and PR. Branch protection can require this to pass
-# before merging; EAS Build can be configured to run only when this workflow succeeds.
+# Run unit tests on every push and PR.
 name: Tests
 
 on:
