@@ -6,10 +6,10 @@
     "scheme": "gotsport",
     "newArchEnabled": true,
     "orientation": "portrait",
-    "icon": "./assets/st-albans.webp",
+    "icon": "./assets/st-albans.png",
     "userInterfaceStyle": "light",
     "splash": {
-      "image": "./assets/st-albans.webp",
+      "image": "./assets/st-albans.png",
       "resizeMode": "contain",
       "backgroundColor": "#1a1a2e"
     },
@@ -22,7 +22,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/st-albans.webp",
+        "foregroundImage": "./assets/st-albans.png",
         "backgroundColor": "#1a1a2e"
       },
       "package": "com.gotsport.tracker"

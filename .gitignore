@@ -9,6 +9,7 @@ dist/
 npm-debug.log*
 .env
 .env.local
+.npmrc
 *.jks
 *.keystore
 .DS_Store
