@@ -5,6 +5,7 @@ import {
   getStAlbansTeamInDivision,
   getSchedulePageUrl,
   getGroupScheduleDateAllUrl,
+  parseLeagueName,
   DEFAULT_GROUP_ID,
   GROUP_ID_U16,
   TEAM_ID_U14,
@@ -119,5 +120,17 @@ describe('getGroupScheduleDateAllUrl', () => {
     const url = getGroupScheduleDateAllUrl();
     expect(url).toContain('date=All');
     expect(url).toContain(`group=${ DEFAULT_GROUP_ID }`);
+  });
+});
+
+describe('parseLeagueName', () => {
+  it('returns empty string when no .lead element', () => {
+    expect(parseLeagueName('<html><body></body></html>')).toBe('');
+    expect(parseLeagueName('<div class="other">Female U14</div>')).toBe('');
+  });
+
+  it('returns trimmed text from .lead element', () => {
+    expect(parseLeagueName('<div class="lead">Female U14 - Orange</div>')).toBe('Female U14 - Orange');
+    expect(parseLeagueName('<div class="lead">  Female   U14  </div>')).toBe('Female U14');
   });
 });

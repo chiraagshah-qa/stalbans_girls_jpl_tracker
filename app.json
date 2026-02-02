@@ -1,6 +1,7 @@
 {
   "expo": {
-    "name": "GotSport Tracker",
+    "owner": "chiraagshah",
+    "name": "St Albans City Academy - GotSport Tracker",
     "slug": "gotsport-tracker-app",
     "version": "1.0.0",
     "scheme": "gotsport",

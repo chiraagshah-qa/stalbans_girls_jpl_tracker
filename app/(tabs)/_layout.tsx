@@ -1,52 +1,53 @@
 import { Tabs } from 'expo-router';
 import { TabIcons } from '../../components/TabIcons';
 
-export default function TabLayout() {
+export default function TabLayout () {
   return (
     <Tabs
-      screenOptions={{
+      screenOptions={ {
         tabBarActiveTintColor: '#FFD700',
         tabBarInactiveTintColor: '#888',
         headerStyle: { backgroundColor: '#0a2463' },
         headerTintColor: '#FFD700',
         tabBarStyle: { backgroundColor: '#0a2463' },
-      }}
+      } }
     >
       <Tabs.Screen
         name="home"
-        options={{
+        options={ {
           title: 'Home',
-          tabBarIcon: ({ color, size }) => <TabIcons name="home" color={color} size={size} />,
-        }}
+          tabBarIcon: ({ color, size }) => <TabIcons name="home" color={ color } size={ size } />,
+        } }
       />
       <Tabs.Screen
         name="table"
-        options={{
+        options={ {
           title: 'Table',
           tabBarLabel: 'Table',
-          tabBarIcon: ({ color, size }) => <TabIcons name="trophy" color={color} size={size} />,
-        }}
+          tabBarIcon: ({ color, size }) => <TabIcons name="trophy" color={ color } size={ size } />,
+        } }
       />
       <Tabs.Screen
         name="results"
-        options={{
+        options={ {
           title: 'Results',
-          tabBarIcon: ({ color, size }) => <TabIcons name="grid" color={color} size={size} />,
-        }}
+          tabBarIcon: ({ color, size }) => <TabIcons name="grid" color={ color } size={ size } />,
+        } }
       />
       <Tabs.Screen
         name="fixtures"
-        options={{
-          title: 'Fixtures',
-          tabBarIcon: ({ color, size }) => <TabIcons name="calendar" color={color} size={size} />,
-        }}
+        options={ {
+          title: 'All League Fixtures',
+          tabBarLabel: 'Fixtures',
+          tabBarIcon: ({ color, size }) => <TabIcons name="calendar" color={ color } size={ size } />,
+        } }
       />
       <Tabs.Screen
         name="settings"
-        options={{
+        options={ {
           title: 'Settings',
-          tabBarIcon: ({ color, size }) => <TabIcons name="settings" color={color} size={size} />,
-        }}
+          tabBarIcon: ({ color, size }) => <TabIcons name="settings" color={ color } size={ size } />,
+        } }
       />
     </Tabs>
   );

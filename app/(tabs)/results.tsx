@@ -14,9 +14,11 @@ import {
   getGroupIdForTeam,
   type ResultsData,
   type Standing,
+  type Fixture,
 } from '../../lib/scraper';
 import { getCachedGroupData, setCachedGroupData } from '../../lib/cache';
 import { getDisplayTeamName } from '../../lib/badges';
+import { getHomeAwayScoresFromFixtures } from '../../lib/resultsHelpers';
 import { TeamBadge } from '../../components/TeamBadge';
 
 const FAVOURITE_STORAGE_KEY = 'gotsport_favourite_team';
@@ -25,6 +27,7 @@ export default function ResultsScreen () {
   const [ favouriteTeam, setFavouriteTeam ] = useState<string | null>(null);
   const [ results, setResults ] = useState<ResultsData | null>(null);
   const [ standings, setStandings ] = useState<Standing[]>([]);
+  const [ fixtures, setFixtures ] = useState<Fixture[]>([]);
   const [ loading, setLoading ] = useState(true);
   const [ refreshing, setRefreshing ] = useState(false);
   const [ error, setError ] = useState<string | null>(null);
@@ -46,6 +49,7 @@ export default function ResultsScreen () {
       if (cached?.results) {
         setResults(cached.results);
         setStandings(cached.standings || []);
+        setFixtures(cached.fixtures || []);
         setError(null);
       }
     }
@@ -56,6 +60,7 @@ export default function ResultsScreen () {
       const data = await scrapeGroup(undefined, groupId);
       setResults(data.results);
       setStandings(data.standings);
+      setFixtures(data.fixtures);
       await setCachedGroupData(groupId, data.standings, data.results, data.fixtures, data.leagueName);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load results');
@@ -114,6 +119,12 @@ export default function ResultsScreen () {
   const teamNames = results?.teamNames ?? [];
   const rows = results?.rows ?? [];
   const teamRow = rows.find((r) => r.teamName.includes('St Albans') && favouriteTeam && r.teamName.includes(favouriteTeam));
+  const ourTeamName = teamRow?.teamName ?? '';
+
+  /** Home/Away scores from fixtures page only (fixture.home/away/score give correct column). */
+  function getHomeAwayScores (opponent: string): { homeScore: string; awayScore: string } {
+    return getHomeAwayScoresFromFixtures(fixtures, ourTeamName, opponent);
+  }
 
   return (
     <ScrollView
@@ -130,12 +141,13 @@ export default function ResultsScreen () {
             <Text style={ styles.oneTeamTitle }>{ getDisplayTeamName(teamRow.teamName) }</Text>
           </View>
           <View style={ styles.resultsHeaderRow }>
-            <Text style={ [ styles.resultsHeaderText, { flex: 1 } ] }>Opponent</Text>
-            <Text style={ styles.resultsHeaderText }>Score</Text>
+            <Text style={ [ styles.resultsHeaderText, styles.opponentCol ] }>Opponent</Text>
+            <Text style={ [ styles.resultsHeaderText, styles.homeCol ] }>Home</Text>
+            <Text style={ [ styles.resultsHeaderText, styles.awayCol ] }>Away</Text>
           </View>
-          { teamNames.map((opponent, idx) => {
+          { teamNames.map((opponent) => {
             if (opponent === teamRow.teamName) return null;
-            const score = teamRow.cells[ idx ] ?? '–';
+            const { homeScore, awayScore } = getHomeAwayScores(opponent);
             const opponentLabel = getDisplayTeamName(opponent);
             return (
               <View
@@ -143,13 +155,14 @@ export default function ResultsScreen () {
                 style={ styles.resultRow }
                 accessible
                 accessibilityRole="summary"
-                accessibilityLabel={ `Opponent: ${ opponentLabel }. Score: ${ score }.` }
+                accessibilityLabel={ `Opponent: ${ opponentLabel }. Home: ${ homeScore }. Away: ${ awayScore }.` }
               >
                 <View style={ styles.opponentCell } accessible={ false }>
                   <TeamBadge teamName={ opponent } size={ 28 } />
                   <Text style={ styles.opponentName } numberOfLines={ 1 }>{ opponentLabel }</Text>
                 </View>
-                <Text style={ styles.oneTeamScoreText } accessible={ false }>{ score }</Text>
+                <Text style={ [ styles.scoreCell, styles.homeCol ] } accessible={ false }>{ homeScore }</Text>
+                <Text style={ [ styles.scoreCell, styles.awayCol ] } accessible={ false }>{ awayScore }</Text>
               </View>
             );
           }) }
@@ -183,6 +196,7 @@ const styles = StyleSheet.create({
   oneTeamTitle: { color: '#111', fontSize: 16, fontWeight: '700', flex: 1, minWidth: 0 },
   resultsHeaderRow: {
     flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: '#FFFDE7',
     paddingVertical: 8,
     paddingHorizontal: 12,
@@ -193,6 +207,9 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   resultsHeaderText: { color: '#111', fontWeight: '700', fontSize: 15, textTransform: 'uppercase' },
+  opponentCol: { flex: 1, minWidth: 0 },
+  homeCol: { minWidth: 52, width: 52, textAlign: 'center' },
+  awayCol: { minWidth: 52, width: 52, textAlign: 'center' },
   resultRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -210,5 +227,5 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   opponentName: { color: '#111', fontSize: 14, flex: 1, minWidth: 0 },
-  oneTeamScoreText: { color: '#333', fontSize: 14, fontWeight: '600' },
+  scoreCell: { color: '#333', fontSize: 14, fontWeight: '600' },
 });
