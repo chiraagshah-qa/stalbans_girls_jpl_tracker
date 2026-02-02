@@ -13,7 +13,6 @@ import {
   scrapeGroup,
   getGroupIdForTeam,
   type ResultsData,
-  type Standing,
   type Fixture,
 } from '../../lib/scraper';
 import { getCachedGroupData, setCachedGroupData } from '../../lib/cache';
@@ -26,7 +25,6 @@ const FAVOURITE_STORAGE_KEY = 'gotsport_favourite_team';
 export default function ResultsScreen () {
   const [ favouriteTeam, setFavouriteTeam ] = useState<string | null>(null);
   const [ results, setResults ] = useState<ResultsData | null>(null);
-  const [ standings, setStandings ] = useState<Standing[]>([]);
   const [ fixtures, setFixtures ] = useState<Fixture[]>([]);
   const [ loading, setLoading ] = useState(true);
   const [ refreshing, setRefreshing ] = useState(false);
@@ -48,7 +46,6 @@ export default function ResultsScreen () {
       const cached = await getCachedGroupData(groupId);
       if (cached?.results) {
         setResults(cached.results);
-        setStandings(cached.standings || []);
         setFixtures(cached.fixtures || []);
         setError(null);
       }
@@ -59,7 +56,6 @@ export default function ResultsScreen () {
     try {
       const data = await scrapeGroup(undefined, groupId);
       setResults(data.results);
-      setStandings(data.standings);
       setFixtures(data.fixtures);
       await setCachedGroupData(groupId, data.standings, data.results, data.fixtures, data.leagueName);
     } catch (e) {
