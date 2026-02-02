@@ -23,6 +23,7 @@ import {
 } from '../../lib/scraper';
 import { getCachedGroupData, setCachedGroupData } from '../../lib/cache';
 import { getDisplayTeamName } from '../../lib/badges';
+import { setAccessibilityFocus, announceForAccessibility } from '../../lib/accessibility';
 import { TeamBadge } from '../../components/TeamBadge';
 import { ScheduleMatchList } from '../../components/ScheduleMatchList';
 
@@ -119,6 +120,8 @@ export default function LandingScreen () {
   };
 
   const appState = useRef(AppState.currentState);
+  const mainContentRef = useRef<View>(null);
+  const prevFavouriteRef = useRef<string | null>(null);
 
   useFocusEffect(() => {
     loadFavourite();
@@ -138,6 +141,18 @@ export default function LandingScreen () {
     return () => sub.remove();
   }, [ favouriteTeam ]);
 
+  useEffect(() => {
+    if (prevFavouriteRef.current === null && favouriteTeam != null) {
+      prevFavouriteRef.current = favouriteTeam;
+      const t = setTimeout(() => {
+        setAccessibilityFocus(mainContentRef);
+        announceForAccessibility(`Home. ${ favouriteTeam } selected.`);
+      }, 250);
+      return () => clearTimeout(t);
+    }
+    prevFavouriteRef.current = favouriteTeam;
+  }, [ favouriteTeam ]);
+
   const saveFavourite = async (division: string) => {
     try {
       await AsyncStorage.setItem(FAVOURITE_STORAGE_KEY, division);
@@ -149,7 +164,9 @@ export default function LandingScreen () {
     return (
       <View style={ styles.centerContainer }>
         <ActivityIndicator size="large" color="#FFD700" />
-        <Text style={ styles.loadingText }>Loading…</Text>
+        <Text style={ styles.loadingText } accessibilityLiveRegion="polite">
+          Loading…
+        </Text>
       </View>
     );
   }
@@ -169,6 +186,8 @@ export default function LandingScreen () {
                 style={ styles.divisionOption }
                 onPress={ () => saveFavourite(div) }
                 activeOpacity={ 0.7 }
+                accessibilityRole="button"
+                accessibilityLabel={ `Select ${ div } team` }
               >
                 <Text style={ styles.divisionOptionText }>{ div }</Text>
               </TouchableOpacity>
@@ -258,7 +277,9 @@ export default function LandingScreen () {
     return (
       <View style={ styles.centerContainer }>
         <ActivityIndicator size="large" color="#FFD700" />
-        <Text style={ styles.loadingText }>Loading…</Text>
+        <Text style={ styles.loadingText } accessibilityLiveRegion="polite">
+          Loading…
+        </Text>
       </View>
     );
   }
@@ -266,10 +287,23 @@ export default function LandingScreen () {
   if (error && standings.length === 0) {
     return (
       <ScrollView style={ styles.container } contentContainerStyle={ styles.centerContainer }>
-        <Text style={ styles.errorText }>{ error }</Text>
+        <Text
+          style={ styles.errorText }
+          accessibilityLiveRegion="polite"
+        >
+          { error }
+        </Text>
         <Text style={ styles.retryHint }>Pull down to retry</Text>
-        <TouchableOpacity style={ styles.retryBtn } onPress={ () => loadData(true) }>
-          <Text style={ styles.retryBtnText }>Retry</Text>
+        <TouchableOpacity
+          style={ styles.retryBtn }
+          onPress={ () => loadData(true) }
+          accessibilityRole="button"
+          accessibilityLabel="Retry loading data"
+          accessibilityHint="Loads data again from the server"
+        >
+          <Text style={ styles.retryBtnText }>
+            Retry
+          </Text>
         </TouchableOpacity>
       </ScrollView>
     );
@@ -280,8 +314,16 @@ export default function LandingScreen () {
       <ScrollView style={ styles.container } contentContainerStyle={ styles.centerContainer }>
         <Text style={ styles.emptyTitle }>No data loaded</Text>
         <Text style={ styles.emptyText }>Pull down to refresh from GotSport.</Text>
-        <TouchableOpacity style={ styles.retryBtn } onPress={ () => loadData(true) }>
-          <Text style={ styles.retryBtnText }>Retry</Text>
+        <TouchableOpacity
+          style={ styles.retryBtn }
+          onPress={ () => loadData(true) }
+          accessibilityRole="button"
+          accessibilityLabel="Retry loading data"
+          accessibilityHint="Loads data again from the server"
+        >
+          <Text style={ styles.retryBtnText }>
+            Retry
+          </Text>
         </TouchableOpacity>
       </ScrollView>
     );
@@ -295,26 +337,45 @@ export default function LandingScreen () {
         <RefreshControl refreshing={ refreshing } onRefresh={ () => loadData(true) } />
       }
     >
-      <View style={ styles.logoBlock }>
+      <View
+        ref={ mainContentRef }
+        style={ styles.logoBlock }
+        accessible
+        accessibilityLabel={ `Home. Team: ${ favouriteTeam }.` }
+      >
         <TeamBadge teamName={ badgeTeamName } size={ LOGO_SIZE } />
         { favouriteTeam && (
           <Text style={ styles.ageGroupLabel }>{ favouriteTeam }</Text>
         ) }
       </View>
       { myStanding && (
-        <View style={ styles.positionCard }>
-          <Text style={ styles.positionLabel }>LEAGUE POSITION:</Text>
-          <Text style={ styles.positionValue }>{ formatPosition(myStanding.rank) }</Text>
-          <Text style={ styles.positionData }>
+        <View
+          style={ styles.positionCard }
+          accessible
+          accessibilityRole="summary"
+          accessibilityLabel={ `League position: ${ formatPosition(myStanding.rank) }. ${ myStanding.PTS } points. Goal difference ${ myStanding.GD >= 0 ? 'plus' : '' } ${ myStanding.GD }.` }
+        >
+          <Text style={ styles.positionLabel } accessible={ false }>LEAGUE POSITION:</Text>
+          <Text style={ styles.positionValue } accessible={ false }>{ formatPosition(myStanding.rank) }</Text>
+          <Text style={ styles.positionData } accessible={ false }>
             { myStanding.PTS } pts · GD { myStanding.GD >= 0 ? '+' : '' }{ myStanding.GD }
           </Text>
         </View>
       ) }
-      <View style={ styles.tile }>
-        <Text style={ styles.tileTitle }>LAST RESULT:</Text>
+      <View
+        style={ styles.tile }
+        accessible
+        accessibilityRole="summary"
+        accessibilityLabel={
+          lastResult
+            ? `Last result. ${ getDisplayTeamName(lastResult.home) } versus ${ getDisplayTeamName(lastResult.away) }. ${ lastResult.score ?? (isRainedOut(lastResult) ? 'Rained out' : isDiscipline(lastResult) ? 'Discipline' : lastResult.status ?? '') }. ${ lastResult.date }${ lastResult.time ? ` at ${ formatTimeForDisplay(lastResult.time) }` : '' }.`
+            : 'Last result. No recent result.'
+        }
+      >
+        <Text style={ styles.tileTitle } accessible={ false }>LAST RESULT:</Text>
         { lastResult ? (
           <>
-            <View style={ styles.tileRow }>
+            <View style={ styles.tileRow } accessible={ false }>
               <TeamBadge teamName={ lastResult.home } size={ 32 } />
               <Text style={ styles.tileTeamLabel } numberOfLines={ 1 }>{ getDisplayTeamName(lastResult.home) }</Text>
             </View>
@@ -324,38 +385,48 @@ export default function LandingScreen () {
                 isRainedOut(lastResult) && !lastResult.score && styles.tileScoreRainedOut,
                 isDiscipline(lastResult) && !lastResult.score && styles.tileScoreDiscipline,
               ] }
+              accessible={ false }
             >
               { lastResult.score ??
                 (isRainedOut(lastResult) ? 'RAINED OUT' : isDiscipline(lastResult) ? 'DISCIPLINE' : lastResult.status ?? '–') }
             </Text>
-            <View style={ styles.tileRow }>
+            <View style={ styles.tileRow } accessible={ false }>
               <TeamBadge teamName={ lastResult.away } size={ 32 } />
               <Text style={ styles.tileTeamLabel } numberOfLines={ 1 }>{ getDisplayTeamName(lastResult.away) }</Text>
             </View>
-            <Text style={ styles.tileMeta }>{ lastResult.date }{ lastResult.time ? ` · ${ formatTimeForDisplay(lastResult.time) }` : '' }</Text>
+            <Text style={ styles.tileMeta } accessible={ false }>{ lastResult.date }{ lastResult.time ? ` · ${ formatTimeForDisplay(lastResult.time) }` : '' }</Text>
           </>
         ) : (
-          <Text style={ styles.tilePlaceholder }>No recent result</Text>
+          <Text style={ styles.tilePlaceholder } accessible={ false }>No recent result</Text>
         ) }
       </View>
-      <View style={ styles.tile }>
-        <Text style={ styles.tileTitle }>NEXT FIXTURE:</Text>
+      <View
+        style={ styles.tile }
+        accessible
+        accessibilityRole="summary"
+        accessibilityLabel={
+          nextFixture
+            ? `Next fixture. ${ getDisplayTeamName(nextFixture.home) } versus ${ getDisplayTeamName(nextFixture.away) }. ${ nextFixture.date }${ nextFixture.time ? ` at ${ formatTimeForDisplay(nextFixture.time) }` : '' }. ${ nextFixture.location ? ` ${ nextFixture.location }.` : '' }`
+            : 'Next fixture. No upcoming fixture.'
+        }
+      >
+        <Text style={ styles.tileTitle } accessible={ false }>NEXT FIXTURE:</Text>
         { nextFixture ? (
           <>
-            <View style={ styles.tileRow }>
+            <View style={ styles.tileRow } accessible={ false }>
               <TeamBadge teamName={ nextFixture.home } size={ 32 } />
               <Text style={ styles.tileTeamLabel } numberOfLines={ 1 }>{ getDisplayTeamName(nextFixture.home) }</Text>
             </View>
-            <Text style={ styles.tileVs }>vs</Text>
-            <View style={ styles.tileRow }>
+            <Text style={ styles.tileVs } accessibilityLabel="versus" accessible={ false }>vs</Text>
+            <View style={ styles.tileRow } accessible={ false }>
               <TeamBadge teamName={ nextFixture.away } size={ 32 } />
               <Text style={ styles.tileTeamLabel } numberOfLines={ 1 }>{ getDisplayTeamName(nextFixture.away) }</Text>
             </View>
-            <Text style={ styles.tileMeta }>{ nextFixture.date }{ nextFixture.time ? ` · ${ formatTimeForDisplay(nextFixture.time) }` : '' }</Text>
-            { nextFixture.location && <Text style={ styles.tileLocation }>{ nextFixture.location }</Text> }
+            <Text style={ styles.tileMeta } accessible={ false }>{ nextFixture.date }{ nextFixture.time ? ` · ${ formatTimeForDisplay(nextFixture.time) }` : '' }</Text>
+            { nextFixture.location && <Text style={ styles.tileLocation } accessible={ false }>{ nextFixture.location }</Text> }
           </>
         ) : (
-          <Text style={ styles.tilePlaceholder }>No upcoming fixture</Text>
+          <Text style={ styles.tilePlaceholder } accessible={ false }>No upcoming fixture</Text>
         ) }
       </View>
       { displayFixtures.length > 0 && (

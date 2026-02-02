@@ -8,53 +8,61 @@ type ScheduleMatchListProps = {
   title: string;
 };
 
-export function ScheduleMatchList({ fixtures, title }: ScheduleMatchListProps) {
+export function ScheduleMatchList ({ fixtures, title }: ScheduleMatchListProps) {
   if (!fixtures.length) {
     return (
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>{title}</Text>
-        <Text style={styles.placeholder}>No fixtures</Text>
+      <View style={ styles.section }>
+        <Text style={ styles.sectionTitle }>{ title }</Text>
+        <Text style={ styles.placeholder }>No fixtures</Text>
       </View>
     );
   }
 
   return (
-    <View style={styles.section}>
-      <Text style={styles.sectionTitle}>{title}</Text>
-      {fixtures.map((f, i) => (
-        <View key={`${f.home}-${f.away}-${i}`} style={styles.card}>
-          <View style={styles.scoreRow}>
-            <View style={styles.teamBlock}>
-              <TeamBadge teamName={f.home} size={24} />
-              <Text style={styles.teamLabel} numberOfLines={1}>{getDisplayTeamName(f.home)}</Text>
+    <View style={ styles.section }>
+      <Text style={ styles.sectionTitle }>{ title }</Text>
+      { fixtures.map((f, i) => (
+        <View
+          key={ `${ f.home }-${ f.away }-${ i }` }
+          style={ styles.card }
+          accessible
+          accessibilityRole="summary"
+          accessibilityLabel={ `${ getDisplayTeamName(f.home) } versus ${ getDisplayTeamName(f.away) } on ${ f.date }${ f.time ? ` at ${ formatTimeForDisplay(f.time) }` : ''
+            }${ f.location ? ` at ${ f.location }` : '' }${ f.status ? `. Status: ${ f.status }` : ''
+            }${ f.played && f.score ? `. Score: ${ f.score }` : '' }` }
+        >
+          <View style={ styles.scoreRow } accessible={ false }>
+            <View style={ styles.teamBlock } accessible={ false }>
+              <TeamBadge teamName={ f.home } size={ 24 } />
+              <Text style={ styles.teamLabel } numberOfLines={ 1 }>{ getDisplayTeamName(f.home) }</Text>
             </View>
-            <Text style={styles.vs}>vs</Text>
-            <View style={styles.teamBlock}>
-              <TeamBadge teamName={f.away} size={24} />
-              <Text style={styles.teamLabel} numberOfLines={1}>{getDisplayTeamName(f.away)}</Text>
+            <Text style={ styles.vs } accessible={ false }>vs</Text>
+            <View style={ styles.teamBlock } accessible={ false }>
+              <TeamBadge teamName={ f.away } size={ 24 } />
+              <Text style={ styles.teamLabel } numberOfLines={ 1 }>{ getDisplayTeamName(f.away) }</Text>
             </View>
           </View>
-          {f.played && f.score !== undefined && (
-            <View style={styles.scoreBlock}>
-              <Text style={styles.scoreLabel}>{f.score}</Text>
+          { f.played && f.score !== undefined && (
+            <View style={ styles.scoreBlock } accessible={ false }>
+              <Text style={ styles.scoreLabel }>{ f.score }</Text>
             </View>
-          )}
-          <Text style={styles.dateLine}>
-            {f.date}
-            {f.time ? ` · ${formatTimeForDisplay(f.time)}` : ''}
+          ) }
+          <Text style={ styles.dateLine } accessible={ false }>
+            { f.date }
+            { f.time ? ` · ${ formatTimeForDisplay(f.time) }` : '' }
           </Text>
-          {f.location && (
-            <Text style={styles.locationText}>{f.location}</Text>
-          )}
-          {f.status && (
-            <View style={[styles.statusBadge, f.status === 'Rained Out' ? styles.statusDanger : f.status === 'Discipline' ? styles.statusWarning : styles.statusDefault]}>
-              <Text style={[styles.statusText, f.status === 'Rained Out' ? styles.statusTextDanger : f.status === 'Discipline' ? styles.statusTextWarning : styles.statusTextDefault]}>
-                {f.status}
+          { f.location && (
+            <Text style={ styles.locationText } accessible={ false }>{ f.location }</Text>
+          ) }
+          { f.status && (
+            <View style={ [ styles.statusBadge, f.status === 'Rained Out' ? styles.statusDanger : f.status === 'Discipline' ? styles.statusWarning : styles.statusDefault ] } accessible={ false }>
+              <Text style={ [ styles.statusText, f.status === 'Rained Out' ? styles.statusTextDanger : f.status === 'Discipline' ? styles.statusTextWarning : styles.statusTextDefault ] }>
+                { f.status }
               </Text>
             </View>
-          )}
+          ) }
         </View>
-      ))}
+      )) }
     </View>
   );
 }

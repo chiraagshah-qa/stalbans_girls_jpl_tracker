@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import {
   StyleSheet,
   View,
@@ -19,6 +19,7 @@ import {
 } from '../../lib/scraper';
 import { getCachedGroupData, setCachedGroupData } from '../../lib/cache';
 import { getDisplayTeamName } from '../../lib/badges';
+import { setAccessibilityFocus, announceForAccessibility } from '../../lib/accessibility';
 import { TeamBadge } from '../../components/TeamBadge';
 
 const FAVOURITE_STORAGE_KEY = 'gotsport_favourite_team';
@@ -75,6 +76,18 @@ export default function FixturesScreen () {
   const [ loading, setLoading ] = useState(true);
   const [ refreshing, setRefreshing ] = useState(false);
   const [ error, setError ] = useState<string | null>(null);
+  const fixturesContentRef = useRef<ScrollView>(null);
+  const prevTabRef = useRef<FixturesTab>('upcoming');
+
+  useEffect(() => {
+    if (prevTabRef.current !== activeTab) {
+      prevTabRef.current = activeTab;
+      const msg = activeTab === 'upcoming' ? 'Showing upcoming fixtures' : 'Showing past fixtures';
+      announceForAccessibility(msg);
+      const t = setTimeout(() => setAccessibilityFocus(fixturesContentRef), 150);
+      return () => clearTimeout(t);
+    }
+  }, [ activeTab ]);
 
   const loadFavourite = async () => {
     try {
@@ -131,14 +144,20 @@ export default function FixturesScreen () {
     return (
       <View style={ styles.centerContainer }>
         <ActivityIndicator size="large" color="#e94560" />
-        <Text style={ styles.loadingText }>Loading…</Text>
+        <Text style={ styles.loadingText } accessibilityLiveRegion="polite">
+          Loading…
+        </Text>
       </View>
     );
   }
 
   if (!favouriteTeam) {
     return (
-      <View style={ styles.centerContainer }>
+      <View
+        style={ styles.centerContainer }
+        accessible
+        accessibilityLabel="No team selected. Go to Settings and choose U14 or U16."
+      >
         <Text style={ styles.emptyTitle }>No team selected</Text>
         <Text style={ styles.emptyText }>Go to Settings and choose U14 or U16.</Text>
       </View>
@@ -201,6 +220,16 @@ export default function FixturesScreen () {
   const showUpcoming = activeTab === 'upcoming';
   const showPast = activeTab === 'past';
 
+  function getFixtureCardLabel (f: Fixture): string {
+    const home = getDisplayTeamName(f.home);
+    const away = getDisplayTeamName(f.away);
+    const dateTime = `${ f.date }${ f.time ? ` at ${ formatTimeForDisplay(f.time) }` : '' }`;
+    const loc = f.location ? `. ${ f.location }` : '';
+    const status = f.status && f.status.toLowerCase() !== 'scheduled' ? `. Status: ${ f.status }` : '';
+    const score = f.played && f.score !== undefined ? `. Score: ${ f.score.replace(/\s*[-–—]\s*/g, ' ') }` : '';
+    return `${ home } versus ${ away }. ${ dateTime }${ loc }${ status }${ score }`;
+  }
+
   function renderUpcomingContent () {
     if (!hasUpcoming) return <Text style={ styles.placeholder }>No upcoming fixtures.</Text>;
     return (
@@ -209,26 +238,32 @@ export default function FixturesScreen () {
           <View key={ `upcoming-${ dayStart.getTime() }` } style={ styles.daySection }>
             <Text style={ styles.dayTitle }>{ formatDayLabel(dayStart, todayStart, false) }</Text>
             { dayFixtures.map((f, i) => (
-              <View key={ `${ f.home }-${ f.away }-${ i }` } style={ styles.card }>
-                <View style={ styles.cardTeamRow }>
+              <View
+                key={ `${ f.home }-${ f.away }-${ i }` }
+                style={ styles.card }
+                accessible
+                accessibilityRole="summary"
+                accessibilityLabel={ getFixtureCardLabel(f) }
+              >
+                <View style={ styles.cardTeamRow } accessible={ false }>
                   <TeamBadge teamName={ f.home } size={ 28 } />
                   <Text style={ styles.cardTeamName } numberOfLines={ 1 }>{ getDisplayTeamName(f.home) }</Text>
                 </View>
-                <Text style={ styles.cardScoreLine }>
+                <Text style={ styles.cardScoreLine } accessible={ false }>
                   { f.played && f.score !== undefined
                     ? f.score.replace(/\s*[-–—]\s*/g, ' v ')
                     : 'v' }
                 </Text>
-                <View style={ styles.cardTeamRow }>
+                <View style={ styles.cardTeamRow } accessible={ false }>
                   <TeamBadge teamName={ f.away } size={ 28 } />
                   <Text style={ styles.cardTeamName } numberOfLines={ 1 }>{ getDisplayTeamName(f.away) }</Text>
                 </View>
-                <Text style={ styles.dateLine }>
+                <Text style={ styles.dateLine } accessible={ false }>
                   { f.date }
                   { f.time ? ` · ${ formatTimeForDisplay(f.time) }` : '' }
                 </Text>
                 { f.status && f.status.toLowerCase() !== 'scheduled' && (
-                  <View style={ [ styles.statusBadge, f.status === 'Rained Out' ? styles.statusDanger : f.status === 'Discipline' ? styles.statusWarning : styles.statusDefault ] }>
+                  <View style={ [ styles.statusBadge, f.status === 'Rained Out' ? styles.statusDanger : f.status === 'Discipline' ? styles.statusWarning : styles.statusDefault ] } accessible={ false }>
                     <Text style={ [ styles.statusText, f.status === 'Rained Out' ? styles.statusTextDanger : f.status === 'Discipline' ? styles.statusTextWarning : styles.statusTextDefault ] }>
                       { f.status }
                     </Text>
@@ -241,26 +276,32 @@ export default function FixturesScreen () {
         { upcomingNoDate.length > 0 && (
           <View style={ styles.daySection }>
             { upcomingNoDate.map(({ f }, i) => (
-              <View key={ `${ f.home }-${ f.away }-${ i }` } style={ styles.card }>
-                <View style={ styles.cardTeamRow }>
+              <View
+                key={ `${ f.home }-${ f.away }-${ i }` }
+                style={ styles.card }
+                accessible
+                accessibilityRole="summary"
+                accessibilityLabel={ getFixtureCardLabel(f) }
+              >
+                <View style={ styles.cardTeamRow } accessible={ false }>
                   <TeamBadge teamName={ f.home } size={ 28 } />
                   <Text style={ styles.cardTeamName } numberOfLines={ 1 }>{ getDisplayTeamName(f.home) }</Text>
                 </View>
-                <Text style={ styles.cardScoreLine }>
+                <Text style={ styles.cardScoreLine } accessible={ false }>
                   { f.played && f.score !== undefined
                     ? f.score.replace(/\s*[-–—]\s*/g, ' v ')
                     : 'v' }
                 </Text>
-                <View style={ styles.cardTeamRow }>
+                <View style={ styles.cardTeamRow } accessible={ false }>
                   <TeamBadge teamName={ f.away } size={ 28 } />
                   <Text style={ styles.cardTeamName } numberOfLines={ 1 }>{ getDisplayTeamName(f.away) }</Text>
                 </View>
-                <Text style={ styles.dateLine }>
+                <Text style={ styles.dateLine } accessible={ false }>
                   { f.date }
                   { f.time ? ` · ${ formatTimeForDisplay(f.time) }` : '' }
                 </Text>
                 { f.status && f.status.toLowerCase() !== 'scheduled' && (
-                  <View style={ [ styles.statusBadge, f.status === 'Rained Out' ? styles.statusDanger : f.status === 'Discipline' ? styles.statusWarning : styles.statusDefault ] }>
+                  <View style={ [ styles.statusBadge, f.status === 'Rained Out' ? styles.statusDanger : f.status === 'Discipline' ? styles.statusWarning : styles.statusDefault ] } accessible={ false }>
                     <Text style={ [ styles.statusText, f.status === 'Rained Out' ? styles.statusTextDanger : f.status === 'Discipline' ? styles.statusTextWarning : styles.statusTextDefault ] }>
                       { f.status }
                     </Text>
@@ -282,26 +323,32 @@ export default function FixturesScreen () {
           <View key={ `past-${ dayStart.getTime() }` } style={ styles.daySection }>
             <Text style={ styles.dayTitle }>{ formatDayLabel(dayStart, todayStart, true) }</Text>
             { dayFixtures.map((f, i) => (
-              <View key={ `${ f.home }-${ f.away }-${ i }` } style={ styles.card }>
-                <View style={ styles.cardTeamRow }>
+              <View
+                key={ `${ f.home }-${ f.away }-${ i }` }
+                style={ styles.card }
+                accessible
+                accessibilityRole="summary"
+                accessibilityLabel={ getFixtureCardLabel(f) }
+              >
+                <View style={ styles.cardTeamRow } accessible={ false }>
                   <TeamBadge teamName={ f.home } size={ 28 } />
                   <Text style={ styles.cardTeamName } numberOfLines={ 1 }>{ getDisplayTeamName(f.home) }</Text>
                 </View>
-                <Text style={ styles.cardScoreLine }>
+                <Text style={ styles.cardScoreLine } accessible={ false }>
                   { f.played && f.score !== undefined
                     ? f.score.replace(/\s*[-–—]\s*/g, ' v ')
                     : 'v' }
                 </Text>
-                <View style={ styles.cardTeamRow }>
+                <View style={ styles.cardTeamRow } accessible={ false }>
                   <TeamBadge teamName={ f.away } size={ 28 } />
                   <Text style={ styles.cardTeamName } numberOfLines={ 1 }>{ getDisplayTeamName(f.away) }</Text>
                 </View>
-                <Text style={ styles.dateLine }>
+                <Text style={ styles.dateLine } accessible={ false }>
                   { f.date }
                   { f.time ? ` · ${ formatTimeForDisplay(f.time) }` : '' }
                 </Text>
                 { f.status && f.status.toLowerCase() !== 'scheduled' && (
-                  <View style={ [ styles.statusBadge, f.status === 'Rained Out' ? styles.statusDanger : f.status === 'Discipline' ? styles.statusWarning : styles.statusDefault ] }>
+                  <View style={ [ styles.statusBadge, f.status === 'Rained Out' ? styles.statusDanger : f.status === 'Discipline' ? styles.statusWarning : styles.statusDefault ] } accessible={ false }>
                     <Text style={ [ styles.statusText, f.status === 'Rained Out' ? styles.statusTextDanger : f.status === 'Discipline' ? styles.statusTextWarning : styles.statusTextDefault ] }>
                       { f.status }
                     </Text>
@@ -314,26 +361,32 @@ export default function FixturesScreen () {
         { pastNoDate.length > 0 && (
           <View style={ styles.daySection }>
             { pastNoDate.map(({ f }, i) => (
-              <View key={ `past-nd-${ f.home }-${ f.away }-${ i }` } style={ styles.card }>
-                <View style={ styles.cardTeamRow }>
+              <View
+                key={ `past-nd-${ f.home }-${ f.away }-${ i }` }
+                style={ styles.card }
+                accessible
+                accessibilityRole="summary"
+                accessibilityLabel={ getFixtureCardLabel(f) }
+              >
+                <View style={ styles.cardTeamRow } accessible={ false }>
                   <TeamBadge teamName={ f.home } size={ 28 } />
                   <Text style={ styles.cardTeamName } numberOfLines={ 1 }>{ getDisplayTeamName(f.home) }</Text>
                 </View>
-                <Text style={ styles.cardScoreLine }>
+                <Text style={ styles.cardScoreLine } accessible={ false }>
                   { f.played && f.score !== undefined
                     ? f.score.replace(/\s*[-–—]\s*/g, ' v ')
                     : 'v' }
                 </Text>
-                <View style={ styles.cardTeamRow }>
+                <View style={ styles.cardTeamRow } accessible={ false }>
                   <TeamBadge teamName={ f.away } size={ 28 } />
                   <Text style={ styles.cardTeamName } numberOfLines={ 1 }>{ getDisplayTeamName(f.away) }</Text>
                 </View>
-                <Text style={ styles.dateLine }>
+                <Text style={ styles.dateLine } accessible={ false }>
                   { f.date }
                   { f.time ? ` · ${ formatTimeForDisplay(f.time) }` : '' }
                 </Text>
                 { f.status && f.status.toLowerCase() !== 'scheduled' && (
-                  <View style={ [ styles.statusBadge, f.status === 'Rained Out' ? styles.statusDanger : f.status === 'Discipline' ? styles.statusWarning : styles.statusDefault ] }>
+                  <View style={ [ styles.statusBadge, f.status === 'Rained Out' ? styles.statusDanger : f.status === 'Discipline' ? styles.statusWarning : styles.statusDefault ] } accessible={ false }>
                     <Text style={ [ styles.statusText, f.status === 'Rained Out' ? styles.statusTextDanger : f.status === 'Discipline' ? styles.statusTextWarning : styles.statusTextDefault ] }>
                       { f.status }
                     </Text>
@@ -354,6 +407,9 @@ export default function FixturesScreen () {
           style={ [ styles.tab, showUpcoming && styles.tabActive ] }
           onPress={ () => setActiveTab('upcoming') }
           activeOpacity={ 0.7 }
+          accessibilityRole="button"
+          accessibilityLabel="Show upcoming fixtures"
+          accessibilityState={ { selected: showUpcoming } }
         >
           <Text style={ [ styles.tabText, showUpcoming && styles.tabTextActive ] }>upcoming</Text>
         </TouchableOpacity>
@@ -361,36 +417,65 @@ export default function FixturesScreen () {
           style={ [ styles.tab, showPast && styles.tabActive ] }
           onPress={ () => setActiveTab('past') }
           activeOpacity={ 0.7 }
+          accessibilityRole="button"
+          accessibilityLabel="Show past fixtures"
+          accessibilityState={ { selected: showPast } }
         >
           <Text style={ [ styles.tabText, showPast && styles.tabTextActive ] }>past</Text>
         </TouchableOpacity>
       </View>
       <ScrollView
+        ref={ fixturesContentRef }
         style={ styles.scroll }
         contentContainerStyle={ [ styles.content, (loading && fixtures.length === 0) && styles.contentCenter ] }
         refreshControl={
           <RefreshControl refreshing={ refreshing } onRefresh={ () => loadData(true) } tintColor="#FFD700" />
         }
+        accessible
+        accessibilityLabel={ activeTab === 'upcoming' ? 'Upcoming fixtures list' : 'Past fixtures list' }
       >
         { loading && fixtures.length === 0 ? (
           <View style={ styles.centerContainer }>
             <ActivityIndicator size="large" color="#e94560" />
-            <Text style={ styles.loadingText }>Loading fixtures…</Text>
+            <Text style={ styles.loadingText } accessibilityLiveRegion="polite">
+              Loading fixtures…
+            </Text>
           </View>
         ) : error && fixtures.length === 0 ? (
           <View style={ styles.centerContainer }>
-            <Text style={ styles.errorText }>{ error }</Text>
+            <Text
+              style={ styles.errorText }
+              accessibilityLiveRegion="polite"
+            >
+              { error }
+            </Text>
             <Text style={ styles.retryHint }>Pull down to retry</Text>
-            <TouchableOpacity style={ styles.retryBtn } onPress={ () => loadData(true) }>
-              <Text style={ styles.retryBtnText }>Retry</Text>
+            <TouchableOpacity
+              style={ styles.retryBtn }
+              onPress={ () => loadData(true) }
+              accessibilityRole="button"
+              accessibilityLabel="Retry loading fixtures"
+              accessibilityHint="Loads fixtures again from the server"
+            >
+              <Text style={ styles.retryBtnText }>
+                Retry
+              </Text>
             </TouchableOpacity>
           </View>
         ) : fixtures.length === 0 ? (
           <View style={ styles.centerContainer }>
             <Text style={ styles.emptyTitle }>No fixtures found</Text>
             <Text style={ styles.emptyText }>Pull down to refresh from GotSport.</Text>
-            <TouchableOpacity style={ styles.retryBtn } onPress={ () => loadData(true) }>
-              <Text style={ styles.retryBtnText }>Retry</Text>
+            <TouchableOpacity
+              style={ styles.retryBtn }
+              onPress={ () => loadData(true) }
+              accessibilityRole="button"
+              accessibilityLabel="Retry loading fixtures"
+              accessibilityHint="Loads fixtures again from the server"
+            >
+              <Text style={ styles.retryBtnText }>
+                Retry
+              </Text>
             </TouchableOpacity>
           </View>
         ) : (

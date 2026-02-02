@@ -20,28 +20,28 @@ import { TeamBadge } from '../../components/TeamBadge';
 
 const FAVOURITE_STORAGE_KEY = 'gotsport_favourite_team';
 
-function formatLastUpdated(ms: number): string {
+function formatLastUpdated (ms: number): string {
   const d = new Date(ms);
   const day = d.getDate();
   const month = d.toLocaleString('en-GB', { month: 'long' });
   const year = d.getFullYear();
   const time = d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
-  return `${day}${day === 1 || day === 21 || day === 31 ? 'st' : day === 2 || day === 22 ? 'nd' : day === 3 || day === 23 ? 'rd' : 'th'} ${month} ${year} at ${time}`;
+  return `${ day }${ day === 1 || day === 21 || day === 31 ? 'st' : day === 2 || day === 22 ? 'nd' : day === 3 || day === 23 ? 'rd' : 'th' } ${ month } ${ year } at ${ time }`;
 }
 
-function getDivisionTitle(teamName: string | null): string {
+function getDivisionTitle (teamName: string | null): string {
   if (!teamName) return '';
   return teamName.includes('U16') ? 'U16s' : 'U14s';
 }
 
-export default function TableScreen() {
-  const [favouriteTeam, setFavouriteTeam] = useState<string | null>(null);
-  const [standings, setStandings] = useState<Standing[]>([]);
-  const [leagueName, setLeagueName] = useState<string | null>(null);
-  const [lastUpdated, setLastUpdated] = useState<number | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+export default function TableScreen () {
+  const [ favouriteTeam, setFavouriteTeam ] = useState<string | null>(null);
+  const [ standings, setStandings ] = useState<Standing[]>([]);
+  const [ leagueName, setLeagueName ] = useState<string | null>(null);
+  const [ lastUpdated, setLastUpdated ] = useState<number | null>(null);
+  const [ loading, setLoading ] = useState(true);
+  const [ refreshing, setRefreshing ] = useState(false);
+  const [ error, setError ] = useState<string | null>(null);
 
   const loadFavourite = async () => {
     try {
@@ -89,110 +89,125 @@ export default function TableScreen() {
 
   useEffect(() => {
     if (favouriteTeam) load();
-  }, [favouriteTeam]);
+  }, [ favouriteTeam ]);
 
   useEffect(() => {
     const title = leagueName
-      ? `Table: ${leagueName}`
+      ? `Table: ${ leagueName }`
       : favouriteTeam
-        ? `Table: ${getDivisionTitle(favouriteTeam)}`
+        ? `Table: ${ getDivisionTitle(favouriteTeam) }`
         : 'Table';
     navigation.setOptions({ title });
-  }, [favouriteTeam, leagueName, navigation]);
+  }, [ favouriteTeam, leagueName, navigation ]);
 
   if (!favouriteTeam) {
     return (
-      <View style={styles.centerContainer}>
-        <Text style={styles.emptyTitle}>No team selected</Text>
-        <Text style={styles.emptyText}>Go to Settings and choose U14 or U16.</Text>
+      <View
+        style={ styles.centerContainer }
+        accessible
+        accessibilityLabel="No team selected. Go to Settings and choose U14 or U16."
+      >
+        <Text style={ styles.emptyTitle }>No team selected</Text>
+        <Text style={ styles.emptyText }>Go to Settings and choose U14 or U16.</Text>
       </View>
     );
   }
 
   if (loading && standings.length === 0) {
     return (
-      <View style={styles.centerContainer}>
+      <View style={ styles.centerContainer }>
         <ActivityIndicator size="large" color="#FFD700" />
-        <Text style={styles.loadingText}>Loading…</Text>
+        <Text style={ styles.loadingText } accessibilityLiveRegion="polite">
+          Loading…
+        </Text>
       </View>
     );
   }
 
   if (error && standings.length === 0) {
     return (
-      <ScrollView contentContainerStyle={styles.centerContainer}>
-        <Text style={styles.errorText}>{error}</Text>
-        <Text style={styles.retryHint}>Pull down to retry</Text>
+      <ScrollView contentContainerStyle={ styles.centerContainer }>
+        <Text
+          style={ styles.errorText }
+          accessibilityLiveRegion="polite"
+        >
+          { error }
+        </Text>
+        <Text style={ styles.retryHint }>Pull down to retry</Text>
       </ScrollView>
     );
   }
 
   return (
     <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.content}
+      style={ styles.container }
+      contentContainerStyle={ styles.content }
       refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor="#FFD700" />
+        <RefreshControl refreshing={ refreshing } onRefresh={ () => load(true) } tintColor="#FFD700" />
       }
     >
-      <View style={styles.tableWrapper}>
-        <View style={styles.tableFixed}>
-          <View style={[styles.rowBase, styles.rowFixed, styles.headerRow]}>
-            <View style={styles.colRank} />
-            <Text style={[styles.headerText, styles.colTeam]}>Team</Text>
+      <View style={ styles.tableWrapper }>
+        <View style={ styles.tableFixed }>
+          <View style={ [ styles.rowBase, styles.rowFixed, styles.headerRow ] }>
+            <View style={ styles.colRank } />
+            <Text style={ [ styles.headerText, styles.colTeam ] }>Team</Text>
           </View>
-          {standings.map((row) => (
+          { standings.map((row) => (
             <View
-              key={row.name}
-              style={[styles.rowBase, styles.rowFixed]}
+              key={ row.name }
+              style={ [ styles.rowBase, styles.rowFixed ] }
+              accessible
+              accessibilityRole="summary"
+              accessibilityLabel={ `Position ${ row.rank }. ${ getDisplayTeamName(row.name) }. Played ${ row.MP }. Goal difference ${ row.GD }. ${ row.PTS } points. ${ row.W } wins. ${ row.D } draws. ${ row.L } losses. ${ row.GF } goals for. ${ row.GA } goals against.` }
             >
-              <Text style={[styles.cellText, styles.colRank]}>{row.rank}</Text>
-              <View style={[styles.teamCell, styles.colTeam]}>
-                <TeamBadge teamName={row.name} size={28} />
-                <Text style={styles.teamName} numberOfLines={2}>{getDisplayTeamName(row.name)}</Text>
+              <Text style={ [ styles.cellText, styles.colRank ] } accessible={ false }>{ row.rank }</Text>
+              <View style={ [ styles.teamCell, styles.colTeam ] } accessible={ false }>
+                <TeamBadge teamName={ row.name } size={ 28 } />
+                <Text style={ styles.teamName } numberOfLines={ 2 }>{ getDisplayTeamName(row.name) }</Text>
               </View>
             </View>
-          ))}
+          )) }
         </View>
         <ScrollView
           horizontal
-          showsHorizontalScrollIndicator={false}
-          style={styles.tableScroll}
-          contentContainerStyle={styles.tableScrollContent}
+          showsHorizontalScrollIndicator={ false }
+          style={ styles.tableScroll }
+          contentContainerStyle={ styles.tableScrollContent }
         >
-          <View style={styles.tableScrollInner}>
-            <View style={[styles.rowBase, styles.rowScroll, styles.headerRow]}>
-              <Text style={[styles.headerText, styles.colNum]}>P</Text>
-              <Text style={[styles.headerText, styles.colNum]}>GD</Text>
-              <Text style={[styles.headerText, styles.colNum]}>Pts</Text>
-              <Text style={[styles.headerText, styles.colNum]}>W</Text>
-              <Text style={[styles.headerText, styles.colNum]}>D</Text>
-              <Text style={[styles.headerText, styles.colNum]}>L</Text>
-              <Text style={[styles.headerText, styles.colNum]}>GF</Text>
-              <Text style={[styles.headerText, styles.colNum]}>GA</Text>
+          <View style={ styles.tableScrollInner }>
+            <View style={ [ styles.rowBase, styles.rowScroll, styles.headerRow ] }>
+              <Text style={ [ styles.headerText, styles.colNum ] }>P</Text>
+              <Text style={ [ styles.headerText, styles.colNum ] }>GD</Text>
+              <Text style={ [ styles.headerText, styles.colNum ] }>Pts</Text>
+              <Text style={ [ styles.headerText, styles.colNum ] }>W</Text>
+              <Text style={ [ styles.headerText, styles.colNum ] }>D</Text>
+              <Text style={ [ styles.headerText, styles.colNum ] }>L</Text>
+              <Text style={ [ styles.headerText, styles.colNum ] }>GF</Text>
+              <Text style={ [ styles.headerText, styles.colNum ] }>GA</Text>
             </View>
-            {standings.map((row) => (
+            { standings.map((row) => (
               <View
-                key={row.name}
-                style={[styles.rowBase, styles.rowScroll]}
+                key={ row.name }
+                style={ [ styles.rowBase, styles.rowScroll ] }
+                accessible={ false }
               >
-                <Text style={[styles.cellText, styles.colNum]}>{row.MP}</Text>
-                <Text style={[styles.cellText, styles.colNum]}>{row.GD}</Text>
-                <Text style={[styles.cellText, styles.colNum]}>{row.PTS}</Text>
-                <Text style={[styles.cellText, styles.colNum]}>{row.W}</Text>
-                <Text style={[styles.cellText, styles.colNum]}>{row.D}</Text>
-                <Text style={[styles.cellText, styles.colNum]}>{row.L}</Text>
-                <Text style={[styles.cellText, styles.colNum]}>{row.GF}</Text>
-                <Text style={[styles.cellText, styles.colNum]}>{row.GA}</Text>
+                <Text style={ [ styles.cellText, styles.colNum ] }>{ row.MP }</Text>
+                <Text style={ [ styles.cellText, styles.colNum ] }>{ row.GD }</Text>
+                <Text style={ [ styles.cellText, styles.colNum ] }>{ row.PTS }</Text>
+                <Text style={ [ styles.cellText, styles.colNum ] }>{ row.W }</Text>
+                <Text style={ [ styles.cellText, styles.colNum ] }>{ row.D }</Text>
+                <Text style={ [ styles.cellText, styles.colNum ] }>{ row.L }</Text>
+                <Text style={ [ styles.cellText, styles.colNum ] }>{ row.GF }</Text>
+                <Text style={ [ styles.cellText, styles.colNum ] }>{ row.GA }</Text>
               </View>
-            ))}
+            )) }
           </View>
         </ScrollView>
       </View>
 
-      {lastUpdated != null && (
-        <Text style={styles.lastUpdated}>Last updated {formatLastUpdated(lastUpdated)}</Text>
-      )}
+      { lastUpdated != null && (
+        <Text style={ styles.lastUpdated }>Last updated { formatLastUpdated(lastUpdated) }</Text>
+      ) }
     </ScrollView>
   );
 }

@@ -21,13 +21,13 @@ import { TeamBadge } from '../../components/TeamBadge';
 
 const FAVOURITE_STORAGE_KEY = 'gotsport_favourite_team';
 
-export default function ResultsScreen() {
-  const [favouriteTeam, setFavouriteTeam] = useState<string | null>(null);
-  const [results, setResults] = useState<ResultsData | null>(null);
-  const [standings, setStandings] = useState<Standing[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+export default function ResultsScreen () {
+  const [ favouriteTeam, setFavouriteTeam ] = useState<string | null>(null);
+  const [ results, setResults ] = useState<ResultsData | null>(null);
+  const [ standings, setStandings ] = useState<Standing[]>([]);
+  const [ loading, setLoading ] = useState(true);
+  const [ refreshing, setRefreshing ] = useState(false);
+  const [ error, setError ] = useState<string | null>(null);
 
   const loadFavourite = async () => {
     try {
@@ -71,31 +71,42 @@ export default function ResultsScreen() {
 
   useEffect(() => {
     if (favouriteTeam) load();
-  }, [favouriteTeam]);
+  }, [ favouriteTeam ]);
 
   if (!favouriteTeam) {
     return (
-      <View style={styles.centerContainer}>
-        <Text style={styles.emptyTitle}>No team selected</Text>
-        <Text style={styles.emptyText}>Go to Settings and choose U14 or U16.</Text>
+      <View
+        style={ styles.centerContainer }
+        accessible
+        accessibilityLabel="No team selected. Go to Settings and choose U14 or U16."
+      >
+        <Text style={ styles.emptyTitle }>No team selected</Text>
+        <Text style={ styles.emptyText }>Go to Settings and choose U14 or U16.</Text>
       </View>
     );
   }
 
   if (loading && !results) {
     return (
-      <View style={styles.centerContainer}>
+      <View style={ styles.centerContainer }>
         <ActivityIndicator size="large" color="#FFD700" />
-        <Text style={styles.loadingText}>Loading…</Text>
+        <Text style={ styles.loadingText } accessibilityLiveRegion="polite">
+          Loading…
+        </Text>
       </View>
     );
   }
 
   if (error && !results) {
     return (
-      <ScrollView contentContainerStyle={styles.centerContainer}>
-        <Text style={styles.errorText}>{error}</Text>
-        <Text style={styles.retryHint}>Pull down to retry</Text>
+      <ScrollView contentContainerStyle={ styles.centerContainer }>
+        <Text
+          style={ styles.errorText }
+          accessibilityLiveRegion="polite"
+        >
+          { error }
+        </Text>
+        <Text style={ styles.retryHint }>Pull down to retry</Text>
       </ScrollView>
     );
   }
@@ -106,40 +117,47 @@ export default function ResultsScreen() {
 
   return (
     <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.content}
+      style={ styles.container }
+      contentContainerStyle={ styles.content }
       refreshControl={
-        <RefreshControl refreshing={refreshing} onRefresh={() => load(true)} tintColor="#FFD700" />
+        <RefreshControl refreshing={ refreshing } onRefresh={ () => load(true) } tintColor="#FFD700" />
       }
     >
-      {teamRow && (
+      { teamRow && (
         <>
-          <View style={styles.oneTeamHeader}>
-            <TeamBadge teamName={teamRow.teamName} size={40} />
-            <Text style={styles.oneTeamTitle}>{getDisplayTeamName(teamRow.teamName)}</Text>
+          <View style={ styles.oneTeamHeader }>
+            <TeamBadge teamName={ teamRow.teamName } size={ 40 } />
+            <Text style={ styles.oneTeamTitle }>{ getDisplayTeamName(teamRow.teamName) }</Text>
           </View>
-          <View style={styles.resultsHeaderRow}>
-            <Text style={[styles.resultsHeaderText, { flex: 1 }]}>Opponent</Text>
-            <Text style={styles.resultsHeaderText}>Score</Text>
+          <View style={ styles.resultsHeaderRow }>
+            <Text style={ [ styles.resultsHeaderText, { flex: 1 } ] }>Opponent</Text>
+            <Text style={ styles.resultsHeaderText }>Score</Text>
           </View>
-          {teamNames.map((opponent, idx) => {
+          { teamNames.map((opponent, idx) => {
             if (opponent === teamRow.teamName) return null;
-            const score = teamRow.cells[idx] ?? '–';
+            const score = teamRow.cells[ idx ] ?? '–';
+            const opponentLabel = getDisplayTeamName(opponent);
             return (
-              <View key={opponent} style={styles.resultRow}>
-                <View style={styles.opponentCell}>
-                  <TeamBadge teamName={opponent} size={28} />
-                  <Text style={styles.opponentName} numberOfLines={1}>{getDisplayTeamName(opponent)}</Text>
+              <View
+                key={ opponent }
+                style={ styles.resultRow }
+                accessible
+                accessibilityRole="summary"
+                accessibilityLabel={ `Opponent: ${ opponentLabel }. Score: ${ score }.` }
+              >
+                <View style={ styles.opponentCell } accessible={ false }>
+                  <TeamBadge teamName={ opponent } size={ 28 } />
+                  <Text style={ styles.opponentName } numberOfLines={ 1 }>{ opponentLabel }</Text>
                 </View>
-                <Text style={styles.oneTeamScoreText}>{score}</Text>
+                <Text style={ styles.oneTeamScoreText } accessible={ false }>{ score }</Text>
               </View>
             );
-          })}
+          }) }
         </>
-      )}
-      {(!results || !teamRow) && (
-        <Text style={styles.emptyText}>No results matrix available.</Text>
-      )}
+      ) }
+      { (!results || !teamRow) && (
+        <Text style={ styles.emptyText }>No results matrix available.</Text>
+      ) }
     </ScrollView>
   );
 }
