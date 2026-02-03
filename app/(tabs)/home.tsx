@@ -61,6 +61,26 @@ function isDiscipline (f: Fixture): boolean {
   return /discipline/i.test(f.status || '');
 }
 
+/** True if fixture was cancelled, postponed, or abandoned (so it counts as a "result" for last result). */
+function isCancelledOrAbandoned (f: Fixture): boolean {
+  return /cancelled|canceled|postponed|abandoned/i.test(f.status || '');
+}
+
+/** Whether fixture has a resolvable outcome (score, played, rained out, discipline, or cancelled/postponed). */
+function hasResultOrOutcome (f: Fixture): boolean {
+  return !!(f.score || f.played || isRainedOut(f) || isDiscipline(f) || isCancelledOrAbandoned(f));
+}
+
+/** Label for last result tile when there is no score (e.g. Rained out, Cancelled). */
+function getLastResultOutcomeLabel (f: Fixture): string {
+  if (isRainedOut(f)) return 'RAINED OUT';
+  if (isDiscipline(f)) return 'DISCIPLINE';
+  if (/cancelled|canceled/i.test(f.status || '')) return 'CANCELLED';
+  if (/postponed/i.test(f.status || '')) return 'POSTPONED';
+  if (/abandoned/i.test(f.status || '')) return 'ABANDONED';
+  return (f.status || '').trim() || '–';
+}
+
 function formatPosition (rank: number): string {
   if (rank === 1) return '1st';
   if (rank === 2) return '2nd';
@@ -242,28 +262,28 @@ export default function LandingScreen () {
     return ta - tb;
   });
   const isPast = (f: Fixture) =>
-    parseDate(f) < todayStartMs || isRainedOut(f) || isDiscipline(f);
+    parseDate(f) < todayStartMs ||
+    isRainedOut(f) ||
+    isDiscipline(f) ||
+    isCancelledOrAbandoned(f);
   const nextFixture =
     forTeamAsc.find((f) => !isRainedOut(f) && !isDiscipline(f) && parseDate(f) >= todayStartMs) ??
     forTeamAsc.find((f) => !isRainedOut(f) && !isDiscipline(f) && !f.score && !f.played) ??
     null;
   const pastWithResult = allForTeam.filter(
-    (f) =>
-      isPast(f) && (f.score || f.played || isRainedOut(f) || isDiscipline(f))
+    (f) => isPast(f) && hasResultOrOutcome(f)
   );
+  /** Pick the most recent past fixture (by date). When no valid dates, use last in list (assumes list is oldest-first). */
   const mostRecentPast = (list: Fixture[]): Fixture | null => {
     if (list.length === 0) return null;
-    const withDate = list
-      .map((f) => ({ f, d: parseDate(f) }))
-      .filter(({ d }) => !isNaN(d));
-    if (withDate.length === 0) return list[ 0 ];
-    return withDate.reduce((best, x) =>
-      x.d > best.d ? x : best
-    ).f;
+    const withValidDate = list.filter((f) => !isNaN(parseDate(f)));
+    if (withValidDate.length === 0) return list[ list.length - 1 ];
+    const byDateDesc = [ ...withValidDate ].sort((a, b) => parseDate(b) - parseDate(a));
+    return byDateDesc[ 0 ];
   };
   const lastResult =
     mostRecentPast(pastWithResult) ??
-    mostRecentPast(allForTeam.filter((f) => f.score || f.played || isRainedOut(f) || isDiscipline(f))) ??
+    mostRecentPast(allForTeam.filter(hasResultOrOutcome)) ??
     mostRecentPast(allForTeam.filter(isPast));
   const todayFixtures = fixturesAsc.filter((f) => {
     const t = parseDate(f);
@@ -368,7 +388,7 @@ export default function LandingScreen () {
         accessibilityRole="summary"
         accessibilityLabel={
           lastResult
-            ? `Last result. ${ getDisplayTeamName(lastResult.home) } versus ${ getDisplayTeamName(lastResult.away) }. ${ lastResult.score ?? (isRainedOut(lastResult) ? 'Rained out' : isDiscipline(lastResult) ? 'Discipline' : lastResult.status ?? '') }. ${ lastResult.date }${ lastResult.time ? ` at ${ formatTimeForDisplay(lastResult.time) }` : '' }.`
+            ? `Last result. ${ getDisplayTeamName(lastResult.home) } versus ${ getDisplayTeamName(lastResult.away) }. ${ lastResult.score ?? getLastResultOutcomeLabel(lastResult) }. ${ lastResult.date }${ lastResult.time ? ` at ${ formatTimeForDisplay(lastResult.time) }` : '' }.`
             : 'Last result. No recent result.'
         }
       >
@@ -387,8 +407,7 @@ export default function LandingScreen () {
               ] }
               accessible={ false }
             >
-              { lastResult.score ??
-                (isRainedOut(lastResult) ? 'RAINED OUT' : isDiscipline(lastResult) ? 'DISCIPLINE' : lastResult.status ?? '–') }
+              { lastResult.score ?? getLastResultOutcomeLabel(lastResult) }
             </Text>
             <View style={ styles.tileRow } accessible={ false }>
               <TeamBadge teamName={ lastResult.away } size={ 32 } />

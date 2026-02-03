@@ -255,7 +255,15 @@ export function parseFixtures (html: string): Fixture[] {
         location = locLink ? text(locLink).trim() : text(cells[ locationCol ]).trim();
         location = location || undefined;
       }
-      const status = getStatusFromTimeCell(timeCol >= 0 ? cells[ timeCol ] : null);
+      let status = getStatusFromTimeCell(timeCol >= 0 ? cells[ timeCol ] : null);
+      if (!status && timeCol >= 0 && cells[ timeCol ]) {
+        const timeCellText = text(cells[ timeCol ]).toLowerCase();
+        if (/rained\s*out/.test(timeCellText)) status = 'Rained out';
+        else if (/discipline/.test(timeCellText)) status = 'Discipline';
+        else if (/cancelled|canceled/.test(timeCellText)) status = 'Cancelled';
+        else if (/postponed/.test(timeCellText)) status = 'Postponed';
+        else if (/abandoned/.test(timeCellText)) status = 'Abandoned';
+      }
 
       fixtures.push({
         date: date || 'TBD',
