@@ -14,6 +14,7 @@
     "test": "jest",
     "build:apk": "npm run test && eas build --platform android --profile preview",
     "build:ios": "npm run test && eas build --platform ios --profile preview",
+    "build:ios:device": "npm run test && eas build --platform ios --profile preview-device",
     "build:ios:prod": "npm run test && eas build --platform ios --profile production",
     "postinstall": "node scripts/apply-expo-gradle-fix.js",
     "prepare": "husky"
