@@ -32,7 +32,15 @@
       "package": "com.gotsport.tracker"
     },
     "plugins": [
-      "expo-router"
+      "expo-router",
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "kotlinVersion": "1.9.24"
+          }
+        }
+      ]
     ],
     "extra": {
       "router": {
