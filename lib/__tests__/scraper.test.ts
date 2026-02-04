@@ -6,10 +6,12 @@ import {
   getSchedulePageUrl,
   getGroupScheduleDateAllUrl,
   parseLeagueName,
+  parseFixtures,
   DEFAULT_GROUP_ID,
   GROUP_ID_U16,
   TEAM_ID_U14,
   type Standing,
+  type Fixture,
 } from '../scraper';
 
 const GOTSPORT_BASE = 'https://system.gotsport.com';
@@ -132,5 +134,77 @@ describe('parseLeagueName', () => {
   it('returns trimmed text from .lead element', () => {
     expect(parseLeagueName('<div class="lead">Female U14 - Orange</div>')).toBe('Female U14 - Orange');
     expect(parseLeagueName('<div class="lead">  Female   U14  </div>')).toBe('Female U14');
+  });
+});
+
+describe('parseFixtures status fallback', () => {
+  it('sets status from time cell text when there is no .label element', () => {
+    const html = `
+      <html>
+        <body>
+          <table>
+            <tr>
+              <th>Time</th>
+              <th>Home</th>
+              <th>Away</th>
+              <th>Result</th>
+            </tr>
+            <tr>
+              <td>Jan 31, 2026 10:00 AM Rained out</td>
+              <td>St Albans City FC Academy Girls U14 Girls</td>
+              <td>Other FC</td>
+              <td></td>
+            </tr>
+          </table>
+        </body>
+      </html>
+    `;
+    const fixtures: Fixture[] = parseFixtures(html);
+    expect(fixtures).toHaveLength(1);
+    const f = fixtures[0];
+    expect(f.home).toBe('St Albans City FC Academy Girls U14 Girls');
+    expect(f.away).toBe('Other FC');
+    // Date and time are parsed directly from the time cell
+    expect(f.date).toBe('Jan 31, 2026');
+    expect(f.time).toMatch(/^10:00 AM/);
+    expect(f.status).toBe('Rained out');
+    expect(f.score).toBeUndefined();
+    expect(f.played).toBeUndefined();
+  });
+
+  it('detects cancelled / postponed / abandoned from time cell text', () => {
+    const html = `
+      <html>
+        <body>
+          <table>
+            <tr>
+              <th>Time</th>
+              <th>Home</th>
+              <th>Away</th>
+            </tr>
+            <tr>
+              <td>Feb 1, 2026 12:00 PM Cancelled</td>
+              <td>Team A</td>
+              <td>Team B</td>
+            </tr>
+            <tr>
+              <td>Feb 2, 2026 13:00 PM Postponed</td>
+              <td>Team C</td>
+              <td>Team D</td>
+            </tr>
+            <tr>
+              <td>Feb 3, 2026 14:00 PM Abandoned</td>
+              <td>Team E</td>
+              <td>Team F</td>
+            </tr>
+          </table>
+        </body>
+      </html>
+    `;
+    const fixtures: Fixture[] = parseFixtures(html);
+    expect(fixtures).toHaveLength(3);
+    expect(fixtures[0].status).toBe('Cancelled');
+    expect(fixtures[1].status).toBe('Postponed');
+    expect(fixtures[2].status).toBe('Abandoned');
   });
 });
