@@ -11,6 +11,7 @@ import {
   Alert,
   Platform,
 } from 'react-native';
+import Constants from 'expo-constants';
 import { useFocusEffect } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { setAccessibilityFocus } from '../../lib/accessibility';
@@ -23,6 +24,7 @@ export default function SettingsScreen () {
   const [ disclaimerVisible, setDisclaimerVisible ] = useState(false);
   const disclaimerButtonRef = useRef<View>(null);
   const modalCloseButtonRef = useRef<View>(null);
+  const appVersion = Constants.expoConfig?.version ?? '1.0.0';
 
   const loadSavedTeam = async () => {
     try {
@@ -136,6 +138,9 @@ export default function SettingsScreen () {
         >
           <Text style={ styles.moreInfoLinkText }>DISCLAIMER</Text>
         </TouchableOpacity>
+        <Text style={ styles.versionText } accessibilityLabel={ `App version ${ appVersion }` }>
+          Version { appVersion }
+        </Text>
       </View>
       <Modal
         visible={ disclaimerVisible }
@@ -232,6 +237,12 @@ const styles = StyleSheet.create({
     color: '#FFD700',
     fontSize: 18,
     fontWeight: '700',
+    textAlign: 'center',
+  },
+  versionText: {
+    marginTop: 12,
+    color: '#999',
+    fontSize: 12,
     textAlign: 'center',
   },
   modalBackdrop: {

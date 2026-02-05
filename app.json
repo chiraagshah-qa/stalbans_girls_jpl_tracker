@@ -19,7 +19,7 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.gotsport.tracker",
+      "bundleIdentifier": "stalbans.gotsport.tracker",
       "config": {
         "usesNonExemptEncryption": false
       }
@@ -29,7 +29,8 @@
         "foregroundImage": "./assets/st-albans.png",
         "backgroundColor": "#1a1a2e"
       },
-      "package": "com.gotsport.tracker"
+      "package": "stalbans.gotsport.tracker",
+      "versionCode": 1
     },
     "plugins": [
       "expo-router",
