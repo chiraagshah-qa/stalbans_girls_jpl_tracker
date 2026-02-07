@@ -9,14 +9,12 @@ import {
 } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import {
-  scrapeGroup,
-  getGroupIdForTeam,
-  type ResultsData,
-  type Fixture,
-} from '../../lib/scraper';
-import { getCachedGroupData, setCachedGroupData } from '../../lib/cache';
+import { scrapeGroup, getTeamIdForSchedule, type ResultsData, type Fixture } from '../../lib/scraper';
+import { getCachedGroupData, setCachedGroupData, getGroupIdForTeam, getTeams } from '../../lib/cache';
+import { useCrests } from '../../lib/CrestContext';
+import { useDelayedError } from '../../lib/useDelayedError';
 import { getDisplayTeamName } from '../../lib/badges';
+import { formatLastUpdated } from '../../lib/format';
 import { getHomeAwayScoresFromFixtures } from '../../lib/resultsHelpers';
 import { TeamBadge } from '../../components/TeamBadge';
 
@@ -24,11 +22,14 @@ const FAVOURITE_STORAGE_KEY = 'gotsport_favourite_team';
 
 export default function ResultsScreen () {
   const [ favouriteTeam, setFavouriteTeam ] = useState<string | null>(null);
+  const [ selectedTeamName, setSelectedTeamName ] = useState<string>('');
   const [ results, setResults ] = useState<ResultsData | null>(null);
   const [ fixtures, setFixtures ] = useState<Fixture[]>([]);
   const [ loading, setLoading ] = useState(true);
   const [ refreshing, setRefreshing ] = useState(false);
-  const [ error, setError ] = useState<string | null>(null);
+  const [ displayError, setError ] = useDelayedError();
+  const [ lastUpdated, setLastUpdated ] = useState<number | null>(null);
+  const { mergeCrests } = useCrests();
 
   const loadFavourite = async () => {
     try {
@@ -41,12 +42,20 @@ export default function ResultsScreen () {
 
   const load = async (isRefresh = false) => {
     if (!favouriteTeam) return;
-    const groupId = getGroupIdForTeam(favouriteTeam);
+    const groupId = await getGroupIdForTeam(favouriteTeam);
+    if (!groupId) {
+      setError('Unable to load results for this team. Use Settings → Refresh team list and try again.');
+      setLoading(false);
+      setRefreshing(false);
+      return;
+    }
+    const teamId = getTeamIdForSchedule(favouriteTeam);
     if (!isRefresh) {
       const cached = await getCachedGroupData(groupId);
       if (cached?.results) {
         setResults(cached.results);
         setFixtures(cached.fixtures || []);
+        if (cached.updatedAt != null) setLastUpdated(cached.updatedAt);
         setError(null);
       }
     }
@@ -54,10 +63,12 @@ export default function ResultsScreen () {
     else setLoading(true);
     setError(null);
     try {
-      const data = await scrapeGroup(undefined, groupId);
+      const data = await scrapeGroup(undefined, groupId, teamId);
       setResults(data.results);
       setFixtures(data.fixtures);
       await setCachedGroupData(groupId, data.standings, data.results, data.fixtures, data.leagueName);
+      if (data.crests?.length) await mergeCrests(data.crests);
+      setLastUpdated(Date.now());
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load results');
     } finally {
@@ -72,6 +83,14 @@ export default function ResultsScreen () {
 
   useEffect(() => {
     if (favouriteTeam) load();
+  }, [ favouriteTeam ]);
+
+  useEffect(() => {
+    if (!favouriteTeam) return;
+    getTeams().then((teams) => {
+      const t = teams.find((x) => x.teamId === favouriteTeam);
+      setSelectedTeamName(t?.name ?? '');
+    });
   }, [ favouriteTeam ]);
 
   if (!favouriteTeam) {
@@ -98,14 +117,14 @@ export default function ResultsScreen () {
     );
   }
 
-  if (error && !results) {
+  if (displayError && !results) {
     return (
       <ScrollView contentContainerStyle={ styles.centerContainer }>
         <Text
           style={ styles.errorText }
           accessibilityLiveRegion="polite"
         >
-          { error }
+          { displayError }
         </Text>
         <Text style={ styles.retryHint }>Pull down to retry</Text>
       </ScrollView>
@@ -114,8 +133,14 @@ export default function ResultsScreen () {
 
   const teamNames = results?.teamNames ?? [];
   const rows = results?.rows ?? [];
-  const teamRow = rows.find((r) => r.teamName.includes('St Albans') && favouriteTeam && r.teamName.includes(favouriteTeam));
-  const ourTeamName = teamRow?.teamName ?? '';
+  const teamRow = rows.find(
+    (r) =>
+      selectedTeamName &&
+      (r.teamName === selectedTeamName ||
+        r.teamName.includes(selectedTeamName) ||
+        selectedTeamName.includes(r.teamName))
+  ) ?? rows.find((r) => r.teamName.includes('St Albans'));
+  const ourTeamName = teamRow?.teamName ?? selectedTeamName;
 
   /** Home/Away scores from fixtures page only (fixture.home/away/score give correct column). */
   function getHomeAwayScores (opponent: string): { homeScore: string; awayScore: string } {
@@ -155,7 +180,7 @@ export default function ResultsScreen () {
               >
                 <View style={ styles.opponentCell } accessible={ false }>
                   <TeamBadge teamName={ opponent } size={ 28 } />
-                  <Text style={ styles.opponentName } numberOfLines={ 1 }>{ opponentLabel }</Text>
+                  <Text style={ styles.opponentName }>{ opponentLabel }</Text>
                 </View>
                 <Text style={ [ styles.scoreCell, styles.homeCol ] } accessible={ false }>{ homeScore }</Text>
                 <Text style={ [ styles.scoreCell, styles.awayCol ] } accessible={ false }>{ awayScore }</Text>
@@ -166,6 +191,9 @@ export default function ResultsScreen () {
       ) }
       { (!results || !teamRow) && (
         <Text style={ styles.emptyText }>No results matrix available.</Text>
+      ) }
+      { lastUpdated != null && (results && teamRow) && (
+        <Text style={ styles.lastUpdated }>Last updated { formatLastUpdated(lastUpdated) }</Text>
       ) }
     </ScrollView>
   );
@@ -224,4 +252,5 @@ const styles = StyleSheet.create({
   },
   opponentName: { color: '#111', fontSize: 14, flex: 1, minWidth: 0 },
   scoreCell: { color: '#333', fontSize: 14, fontWeight: '600' },
+  lastUpdated: { color: '#666', fontSize: 12, marginTop: 16, marginBottom: 8 },
 });

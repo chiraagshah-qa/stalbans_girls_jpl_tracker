@@ -26,12 +26,109 @@ async function fetchHtml (url: string): Promise<string> {
 }
 
 const DEFAULT_EVENT_ID = '46915';
+const DEFAULT_CLUB_ID = '28533';
+/** Exported for tests/URL building only; do not use as defaults for resolution */
 export const DEFAULT_GROUP_ID = '431414';
 export const TEAM_ID_U14 = '3499548';
+export const TEAM_ID_U16 = '3499547';
 export const GROUP_ID_U16 = '431728';
 
-export function getGroupIdForTeam (teamName: string | null): string {
-  return teamName && teamName.includes('U16') ? GROUP_ID_U16 : DEFAULT_GROUP_ID;
+export type ClubTeam = {
+  name: string;
+  teamId: string;
+  division: string;
+  age?: string;
+};
+
+export function getEventPageUrl (eventId: string = DEFAULT_EVENT_ID): string {
+  return `${ GOTSPORT_BASE }/org_event/events/${ eventId }`;
+}
+
+export async function fetchEventPage (eventId: string = DEFAULT_EVENT_ID): Promise<string> {
+  return fetchHtml(getEventPageUrl(eventId));
+}
+
+/**
+ * Parse event page for division/group labels and their group IDs.
+ * Finds links containing group= and uses link text to derive division name
+ * (e.g. "Female U14 - Orange" → division "Orange").
+ * Returns Record<divisionName, groupId> – no hardcoded defaults.
+ */
+export function parseEventPageGroupIds (html: string): Record<string, string> {
+  const root = parse(html);
+  const map: Record<string, string> = {};
+  const links = root.querySelectorAll('a[href*="group="]');
+  for (const a of links) {
+    const href = a.getAttribute('href') ?? '';
+    const match = href.match(/group=(\d+)/);
+    if (!match) continue;
+    const groupId = match[ 1 ];
+    const label = text(a).trim();
+    if (!label) continue;
+    const division = label.includes(' - ') ? label.split(' - ').pop()!.trim() : label;
+    map[ division ] = groupId;
+  }
+  return map;
+}
+
+export function getClubsPageUrl (
+  eventId: string = DEFAULT_EVENT_ID,
+  clubId: string = DEFAULT_CLUB_ID
+): string {
+  return `${ GOTSPORT_BASE }/org_event/events/${ eventId }/clubs/${ clubId }`;
+}
+
+export async function fetchClubsPage (
+  eventId: string = DEFAULT_EVENT_ID,
+  clubId: string = DEFAULT_CLUB_ID
+): Promise<string> {
+  const url = getClubsPageUrl(eventId, clubId);
+  return fetchHtml(url);
+}
+
+/** Parse teams table from clubs page (Name, Gender, Age, Division, Bracket). */
+export function parseClubsPage (html: string): ClubTeam[] {
+  const root = parse(html);
+  const teams: ClubTeam[] = [];
+  const tables = root.querySelectorAll('table');
+  for (const table of tables) {
+    const rows = table.querySelectorAll('tr');
+    if (rows.length < 2) continue;
+    const headerCells = rows[ 0 ].querySelectorAll('th, td');
+    const headers = headerCells.map((c) => text(c).toLowerCase());
+    const nameCol = headers.findIndex((h) => h.includes('name'));
+    const ageCol = headers.findIndex((h) => h === 'age');
+    const divisionCol = headers.findIndex((h) => h.includes('division'));
+    if (nameCol === -1 || divisionCol === -1) continue;
+    for (let r = 1; r < rows.length; r++) {
+      const cells = rows[ r ].querySelectorAll('td');
+      if (cells.length <= Math.max(nameCol, divisionCol)) continue;
+      const nameCell = cells[ nameCol ];
+      const link = nameCell?.querySelector?.('a[href*="team="]');
+      const href = link?.getAttribute('href') ?? '';
+      const teamMatch = href.match(/team=(\d+)/);
+      if (!teamMatch) continue;
+      const teamId = teamMatch[ 1 ];
+      const name = text(link || nameCell).trim() || text(nameCell).trim();
+      const division = (divisionCol >= 0 && cells[ divisionCol ] ? text(cells[ divisionCol ]).trim() : '') || '';
+      const age = ageCol >= 0 && cells[ ageCol ] ? text(cells[ ageCol ]).trim() : undefined;
+      teams.push({ name, teamId, division, ...(age && { age }) });
+    }
+    break;
+  }
+  return teams;
+}
+
+/** TeamId for schedule is the selected team ID (from the clubs schedule link). No defaults. */
+export function getTeamIdForSchedule (favouriteTeam: string | null): string | undefined {
+  return favouriteTeam && favouriteTeam.trim() ? favouriteTeam : undefined;
+}
+
+/** Short label for team picker (e.g. "U14 Girls", "U16 Girls"). */
+export function getAgeGroupDisplayName (team: ClubTeam): string {
+  if (team.age) return `${ team.age } Girls`;
+  const u = team.name.match(/\b(U\d+)\s*Girls?\b/i) || team.name.match(/\b(U\d+)\b/i);
+  return u ? `${ u[ 1 ] } Girls` : team.name;
 }
 
 export function getStAlbansTeamInDivision (standings: Standing[], division: string): string | null {
@@ -95,32 +192,46 @@ export async function fetchResultsPage (
 
 export const getSchedulePageUrl = (
   eventId: string = DEFAULT_EVENT_ID,
-  groupId: string = DEFAULT_GROUP_ID,
-  teamId?: string
-) => {
-  if (groupId === DEFAULT_GROUP_ID && (teamId || TEAM_ID_U14)) {
-    return `${ GOTSPORT_BASE }/org_event/events/${ eventId }/schedules?team=${ teamId || TEAM_ID_U14 }`;
+  groupId: string,
+  teamId?: string | null
+): string => {
+  if (teamId) {
+    return `${ GOTSPORT_BASE }/org_event/events/${ eventId }/schedules?team=${ teamId }`;
   }
   return `${ GOTSPORT_BASE }/org_event/events/${ eventId }/schedules?group=${ groupId }`;
 };
 
 export async function fetchTeamSchedulePage (
   eventId: string = DEFAULT_EVENT_ID,
-  teamId: string = TEAM_ID_U14
+  teamId: string
 ): Promise<string> {
   const url = `${ GOTSPORT_BASE }/org_event/events/${ eventId }/schedules?team=${ teamId }`;
   return fetchHtml(url);
 }
 
+/**
+ * Parse a team schedule page for the group ID (results/standings link).
+ * The schedule page linked from the clubs table contains links with group= – we use that.
+ * Returns null if none found (no defaults).
+ */
+export function parseSchedulePageForGroupId (html: string): string | null {
+  const root = parse(html);
+  const links = root.querySelectorAll('a[href*="group="]');
+  for (const a of links) {
+    const href = a.getAttribute('href') ?? '';
+    const match = href.match(/group=(\d+)/);
+    if (match) return match[ 1 ];
+  }
+  return null;
+}
+
 export async function fetchSchedulePage (
   eventId: string = DEFAULT_EVENT_ID,
-  groupId: string = DEFAULT_GROUP_ID
+  groupId: string,
+  teamId?: string | null
 ): Promise<string> {
-  if (groupId === DEFAULT_GROUP_ID) {
-    return fetchTeamSchedulePage(eventId, TEAM_ID_U14);
-  }
-  const url = getSchedulePageUrl(eventId, groupId);
-  return fetchHtml(url);
+  if (teamId) return fetchTeamSchedulePage(eventId, teamId);
+  return fetchHtml(getSchedulePageUrl(eventId, groupId));
 }
 
 export function getGroupScheduleDateAllUrl (
@@ -371,18 +482,24 @@ export function parseResultsMatrix (html: string): ResultsData {
 
 export async function scrapeGroup (
   eventId: string = DEFAULT_EVENT_ID,
-  groupId: string = DEFAULT_GROUP_ID
-): Promise<{ standings: Standing[]; results: ResultsData; fixtures: Fixture[]; leagueName: string }> {
+  groupId: string = DEFAULT_GROUP_ID,
+  teamId?: string | null
+): Promise<{ standings: Standing[]; results: ResultsData; fixtures: Fixture[]; leagueName: string; crests: TeamCrest[] }> {
   const html = await fetchResultsPage(eventId, groupId);
   const standings = parseStandings(html, eventId);
   const results = parseResultsMatrix(html);
   const leagueName = parseLeagueName(html);
-  const scheduleHtml =
-    groupId === DEFAULT_GROUP_ID
-      ? await fetchTeamSchedulePage(eventId, TEAM_ID_U14)
-      : await fetchSchedulePage(eventId, groupId);
+  const crestsFromResults = parseTeamCrests(html);
+  const scheduleHtml = teamId
+    ? await fetchTeamSchedulePage(eventId, teamId)
+    : await fetchSchedulePage(eventId, groupId);
   const fixtures = parseFixtures(scheduleHtml);
-  return { standings, results, fixtures, leagueName };
+  const crestsFromSchedule = parseTeamCrests(scheduleHtml);
+  const byName = new Map<string, string>();
+  for (const c of crestsFromResults) byName.set(c.name, c.crestUrl);
+  for (const c of crestsFromSchedule) if (!byName.has(c.name)) byName.set(c.name, c.crestUrl);
+  const crests = Array.from(byName.entries()).map(([ name, crestUrl ]) => ({ name, crestUrl }));
+  return { standings, results, fixtures, leagueName, crests };
 }
 
 export async function scrapeFixtures (

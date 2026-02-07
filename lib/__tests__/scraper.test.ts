@@ -1,5 +1,6 @@
 import {
-  getGroupIdForTeam,
+  parseSchedulePageForGroupId,
+  getTeamIdForSchedule,
   parseFixtureDate,
   formatTimeForDisplay,
   getStAlbansTeamInDivision,
@@ -17,16 +18,25 @@ import {
 const GOTSPORT_BASE = 'https://system.gotsport.com';
 const DEFAULT_EVENT_ID = '46915';
 
-describe('getGroupIdForTeam', () => {
-  it('returns U16 group id when team name includes U16', () => {
-    expect(getGroupIdForTeam('U16')).toBe(GROUP_ID_U16);
-    expect(getGroupIdForTeam('St Albans U16')).toBe(GROUP_ID_U16);
+describe('parseSchedulePageForGroupId', () => {
+  it('returns null when no group= link', () => {
+    expect(parseSchedulePageForGroupId('<html><body><a href="/other">Link</a></body></html>')).toBeNull();
   });
 
-  it('returns default group id for U14 or null', () => {
-    expect(getGroupIdForTeam('U14')).toBe(DEFAULT_GROUP_ID);
-    expect(getGroupIdForTeam(null)).toBe(DEFAULT_GROUP_ID);
-    expect(getGroupIdForTeam('St Albans U14')).toBe(DEFAULT_GROUP_ID);
+  it('extracts group ID from first link with group=', () => {
+    const html = '<html><a href="/org_event/events/46915/results?group=431414">Results</a></html>';
+    expect(parseSchedulePageForGroupId(html)).toBe('431414');
+  });
+});
+
+describe('getTeamIdForSchedule', () => {
+  it('returns favourite when non-empty', () => {
+    expect(getTeamIdForSchedule('3499548')).toBe('3499548');
+  });
+  it('returns undefined when null or empty', () => {
+    expect(getTeamIdForSchedule(null)).toBeUndefined();
+    expect(getTeamIdForSchedule('')).toBeUndefined();
+    expect(getTeamIdForSchedule('   ')).toBeUndefined();
   });
 });
 
@@ -100,10 +110,9 @@ describe('getSchedulePageUrl', () => {
     expect(url).toBe(`${ GOTSPORT_BASE }/org_event/events/${ DEFAULT_EVENT_ID }/schedules?team=${ TEAM_ID_U14 }`);
   });
 
-  it('returns team schedule URL for default group without teamId', () => {
+  it('returns group schedule URL when no teamId', () => {
     const url = getSchedulePageUrl(DEFAULT_EVENT_ID, DEFAULT_GROUP_ID);
-    expect(url).toContain('schedules?team=');
-    expect(url).toContain(GOTSPORT_BASE);
+    expect(url).toBe(`${ GOTSPORT_BASE }/org_event/events/${ DEFAULT_EVENT_ID }/schedules?group=${ DEFAULT_GROUP_ID }`);
   });
 
   it('returns group schedule URL for non-default group', () => {

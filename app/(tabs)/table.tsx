@@ -9,39 +9,32 @@ import {
 } from 'react-native';
 import { useFocusEffect, useNavigation } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import {
-  scrapeGroup,
-  getGroupIdForTeam,
-  type Standing,
-} from '../../lib/scraper';
-import { getCachedGroupData, setCachedGroupData } from '../../lib/cache';
+import { scrapeGroup, getTeamIdForSchedule, type Standing } from '../../lib/scraper';
+import { getCachedGroupData, setCachedGroupData, getTeams, getGroupIdForTeam } from '../../lib/cache';
+import { useCrests } from '../../lib/CrestContext';
+import { useDelayedError } from '../../lib/useDelayedError';
 import { getDisplayTeamName } from '../../lib/badges';
+import { formatLastUpdated } from '../../lib/format';
 import { TeamBadge } from '../../components/TeamBadge';
 
 const FAVOURITE_STORAGE_KEY = 'gotsport_favourite_team';
 
-function formatLastUpdated (ms: number): string {
-  const d = new Date(ms);
-  const day = d.getDate();
-  const month = d.toLocaleString('en-GB', { month: 'long' });
-  const year = d.getFullYear();
-  const time = d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false });
-  return `${ day }${ day === 1 || day === 21 || day === 31 ? 'st' : day === 2 || day === 22 ? 'nd' : day === 3 || day === 23 ? 'rd' : 'th' } ${ month } ${ year } at ${ time }`;
-}
-
-function getDivisionTitle (teamName: string | null): string {
-  if (!teamName) return '';
-  return teamName.includes('U16') ? 'U16s' : 'U14s';
+function getDivisionTitle (favouriteTeam: string | null, teamAge?: string): string {
+  if (!favouriteTeam) return '';
+  if (teamAge) return `${ teamAge }s`;
+  return favouriteTeam.includes('U16') ? 'U16s' : 'U14s';
 }
 
 export default function TableScreen () {
   const [ favouriteTeam, setFavouriteTeam ] = useState<string | null>(null);
+  const [ selectedTeamAge, setSelectedTeamAge ] = useState<string | null>(null);
   const [ standings, setStandings ] = useState<Standing[]>([]);
   const [ leagueName, setLeagueName ] = useState<string | null>(null);
   const [ lastUpdated, setLastUpdated ] = useState<number | null>(null);
   const [ loading, setLoading ] = useState(true);
   const [ refreshing, setRefreshing ] = useState(false);
-  const [ error, setError ] = useState<string | null>(null);
+  const [ displayError, setError ] = useDelayedError();
+  const { mergeCrests } = useCrests();
 
   const loadFavourite = async () => {
     try {
@@ -54,7 +47,17 @@ export default function TableScreen () {
 
   const load = async (isRefresh = false) => {
     if (!favouriteTeam) return;
-    const groupId = getGroupIdForTeam(favouriteTeam);
+    const teams = await getTeams();
+    const sel = teams.find((t) => t.teamId === favouriteTeam);
+    if (sel?.age) setSelectedTeamAge(sel.age);
+    const groupId = await getGroupIdForTeam(favouriteTeam);
+    if (!groupId) {
+      setError('Unable to load table for this team. Use Settings → Refresh team list and try again.');
+      setLoading(false);
+      setRefreshing(false);
+      return;
+    }
+    const teamId = getTeamIdForSchedule(favouriteTeam);
     if (!isRefresh) {
       const cached = await getCachedGroupData(groupId);
       if (cached?.standings?.length) {
@@ -68,10 +71,11 @@ export default function TableScreen () {
     else setLoading(true);
     setError(null);
     try {
-      const data = await scrapeGroup(undefined, groupId);
+      const data = await scrapeGroup(undefined, groupId, teamId);
       setStandings(data.standings);
       setLeagueName(data.leagueName || null);
       await setCachedGroupData(groupId, data.standings, data.results, data.fixtures, data.leagueName);
+      if (data.crests?.length) await mergeCrests(data.crests);
       setLastUpdated(Date.now());
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load table');
@@ -95,10 +99,10 @@ export default function TableScreen () {
     const title = leagueName
       ? `Table: ${ leagueName }`
       : favouriteTeam
-        ? `Table: ${ getDivisionTitle(favouriteTeam) }`
+        ? `Table: ${ getDivisionTitle(favouriteTeam, selectedTeamAge ?? undefined) }`
         : 'Table';
     navigation.setOptions({ title });
-  }, [ favouriteTeam, leagueName, navigation ]);
+  }, [ favouriteTeam, selectedTeamAge, leagueName, navigation ]);
 
   if (!favouriteTeam) {
     return (
@@ -124,14 +128,14 @@ export default function TableScreen () {
     );
   }
 
-  if (error && standings.length === 0) {
+  if (displayError && standings.length === 0) {
     return (
       <ScrollView contentContainerStyle={ styles.centerContainer }>
         <Text
           style={ styles.errorText }
           accessibilityLiveRegion="polite"
         >
-          { error }
+          { displayError }
         </Text>
         <Text style={ styles.retryHint }>Pull down to retry</Text>
       </ScrollView>

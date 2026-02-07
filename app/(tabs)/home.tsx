@@ -14,22 +14,26 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   scrapeGroup,
   scrapeFixtures,
-  getGroupIdForTeam,
+  getTeamIdForSchedule,
   getStAlbansTeamInDivision,
+  getAgeGroupDisplayName,
   formatTimeForDisplay,
   parseFixtureDate,
   type Standing,
   type Fixture,
+  type ClubTeam,
 } from '../../lib/scraper';
-import { getCachedGroupData, setCachedGroupData } from '../../lib/cache';
+import { getCachedGroupData, setCachedGroupData, getTeams, getGroupIdForTeam } from '../../lib/cache';
+import { useCrests } from '../../lib/CrestContext';
 import { getDisplayTeamName } from '../../lib/badges';
+import { formatLastUpdated } from '../../lib/format';
 import { setAccessibilityFocus, announceForAccessibility } from '../../lib/accessibility';
+import { useDelayedError } from '../../lib/useDelayedError';
 import { TeamBadge } from '../../components/TeamBadge';
 import { ScheduleMatchList } from '../../components/ScheduleMatchList';
 
 const FAVOURITE_STORAGE_KEY = 'gotsport_favourite_team';
 const LOGO_SIZE = 64;
-const DIVISIONS = [ 'U14', 'U16' ] as const;
 
 function isTeamInFixture (fixture: Fixture, teamName: string, division: string | null): boolean {
   if (!teamName) return false;
@@ -91,11 +95,15 @@ function formatPosition (rank: number): string {
 export default function LandingScreen () {
   const [ hydrating, setHydrating ] = useState(true);
   const [ favouriteTeam, setFavouriteTeam ] = useState<string | null>(null);
+  const [ teams, setTeams ] = useState<ClubTeam[]>([]);
+  const [ groupId, setGroupId ] = useState<string | null>(null);
   const [ standings, setStandings ] = useState<Standing[]>([]);
+  const [ lastUpdated, setLastUpdated ] = useState<number | null>(null);
+  const { mergeCrests } = useCrests();
   const [ fixtures, setFixtures ] = useState<Fixture[]>([]);
   const [ loading, setLoading ] = useState(true);
   const [ refreshing, setRefreshing ] = useState(false);
-  const [ error, setError ] = useState<string | null>(null);
+  const [ displayError, setError ] = useDelayedError();
 
   const loadFavourite = async () => {
     try {
@@ -110,12 +118,26 @@ export default function LandingScreen () {
 
   const loadData = async (isRefresh = false) => {
     if (!favouriteTeam) return;
-    const groupId = getGroupIdForTeam(favouriteTeam);
+    setGroupId(null);
+    const list = teams.length ? teams : await getTeams();
+    if (!list.length) setTeams(list);
+    const g = await getGroupIdForTeam(favouriteTeam);
+    if (!g) {
+      setGroupId(null);
+      setError('Unable to load data for this team. Use Settings → Refresh team list, then try again.');
+      setLoading(false);
+      setRefreshing(false);
+      return;
+    }
+    setGroupId(g);
+    setError(null);
+    const teamId = getTeamIdForSchedule(favouriteTeam);
     let hadCache = false;
     if (!isRefresh) {
-      const cached = await getCachedGroupData(groupId);
+      const cached = await getCachedGroupData(g);
       if (cached?.standings) {
         setStandings(cached.standings);
+        if (cached.updatedAt != null) setLastUpdated(cached.updatedAt);
         setError(null);
         hadCache = true;
       }
@@ -125,12 +147,14 @@ export default function LandingScreen () {
     setError(null);
     try {
       const [ groupData, fixturesData ] = await Promise.all([
-        scrapeGroup(undefined, groupId),
-        scrapeFixtures(undefined, groupId),
+        scrapeGroup(undefined, g, teamId),
+        scrapeFixtures(undefined, g),
       ]);
       setStandings(groupData.standings);
       setFixtures(fixturesData);
-      await setCachedGroupData(groupId, groupData.standings, groupData.results, fixturesData, groupData.leagueName);
+      await setCachedGroupData(g, groupData.standings, groupData.results, fixturesData, groupData.leagueName);
+      if (groupData.crests?.length) await mergeCrests(groupData.crests);
+      setLastUpdated(Date.now());
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load data');
     } finally {
@@ -145,6 +169,7 @@ export default function LandingScreen () {
 
   useFocusEffect(() => {
     loadFavourite();
+    getTeams().then(setTeams);
   });
 
   useEffect(() => {
@@ -166,17 +191,18 @@ export default function LandingScreen () {
       prevFavouriteRef.current = favouriteTeam;
       const t = setTimeout(() => {
         setAccessibilityFocus(mainContentRef);
-        announceForAccessibility(`Home. ${ favouriteTeam } selected.`);
+        const label = teams.find((x) => x.teamId === favouriteTeam);
+        announceForAccessibility(`Home. ${ label ? getAgeGroupDisplayName(label) : 'Team' } selected.`);
       }, 250);
       return () => clearTimeout(t);
     }
     prevFavouriteRef.current = favouriteTeam;
   }, [ favouriteTeam ]);
 
-  const saveFavourite = async (division: string) => {
+  const saveFavourite = async (team: ClubTeam) => {
     try {
-      await AsyncStorage.setItem(FAVOURITE_STORAGE_KEY, division);
-      setFavouriteTeam(division);
+      await AsyncStorage.setItem(FAVOURITE_STORAGE_KEY, team.teamId);
+      setFavouriteTeam(team.teamId);
     } catch { }
   };
 
@@ -199,29 +225,67 @@ export default function LandingScreen () {
           <Text style={ styles.pickSubtitle }>
             Select your age group to see table and fixtures.
           </Text>
-          <View style={ styles.divisionRow }>
-            { DIVISIONS.map((div) => (
-              <TouchableOpacity
-                key={ div }
-                style={ styles.divisionOption }
-                onPress={ () => saveFavourite(div) }
-                activeOpacity={ 0.7 }
-                accessibilityRole="button"
-                accessibilityLabel={ `Select ${ div } team` }
-              >
-                <Text style={ styles.divisionOptionText }>{ div }</Text>
-              </TouchableOpacity>
-            )) }
-          </View>
+          { teams.length === 0 ? (
+            <View style={ styles.centerContainer }>
+              <ActivityIndicator size="small" color="#0a2463" />
+              <Text style={ styles.loadingText }>Loading teams…</Text>
+            </View>
+          ) : (
+            <View style={ styles.divisionRow }>
+              { teams.map((team) => (
+                <TouchableOpacity
+                  key={ team.teamId }
+                  style={ styles.divisionOption }
+                  onPress={ () => saveFavourite(team) }
+                  activeOpacity={ 0.7 }
+                  accessibilityRole="button"
+                  accessibilityLabel={ `Select ${ getAgeGroupDisplayName(team) }` }
+                >
+                  <Text style={ styles.divisionOptionText } numberOfLines={ 1 }>
+                    { getAgeGroupDisplayName(team) }
+                  </Text>
+                </TouchableOpacity>
+              )) }
+            </View>
+          ) }
         </View>
       </ScrollView>
     );
   }
 
-  const groupId = getGroupIdForTeam(favouriteTeam);
-  const badgeTeamName = getStAlbansTeamInDivision(standings, favouriteTeam) || favouriteTeam;
+  const selectedTeamObj = teams.find((t) => t.teamId === favouriteTeam);
+  const divisionForStanding = selectedTeamObj?.age ?? (favouriteTeam?.includes('U16') ? 'U16' : 'U14');
+  if (!groupId) {
+    if (displayError) {
+      return (
+        <ScrollView style={ styles.container } contentContainerStyle={ styles.content }>
+          <Text style={ styles.errorText }>{ displayError }</Text>
+          <Text style={ styles.retryHint }>Pull down to retry</Text>
+          <TouchableOpacity
+            style={ styles.retryBtn }
+            onPress={ () => loadData(true) }
+            accessibilityRole="button"
+            accessibilityLabel="Retry loading data"
+          >
+            <Text style={ styles.retryBtnText }>Retry</Text>
+          </TouchableOpacity>
+        </ScrollView>
+      );
+    }
+    return (
+      <ScrollView style={ styles.container } contentContainerStyle={ styles.centerContainer }>
+        <ActivityIndicator size="large" color="#0a2463" />
+        <Text style={ styles.loadingText }>Loading…</Text>
+      </ScrollView>
+    );
+  }
+  const badgeTeamName =
+    getStAlbansTeamInDivision(standings, divisionForStanding) ||
+    selectedTeamObj?.name ||
+    (favouriteTeam && !/^\d+$/.test(favouriteTeam) ? favouriteTeam : 'St Albans');
+  const homeTeamDisplayLabel = selectedTeamObj ? getAgeGroupDisplayName(selectedTeamObj) : (badgeTeamName && badgeTeamName !== favouriteTeam ? badgeTeamName : '');
   const myStanding = standings.find(
-    (s) => s.name.includes('St Albans') && s.name.includes(favouriteTeam)
+    (s) => s.name.includes('St Albans') && (divisionForStanding && s.name.includes(divisionForStanding) || s.name.includes(favouriteTeam))
   );
   const oneDay = 24 * 60 * 60 * 1000;
   const parseDate = (f: Fixture): number => {
@@ -243,15 +307,15 @@ export default function LandingScreen () {
   );
   const allForTeam =
     fixtures.filter((f) =>
-      isTeamInFixture(f, badgeTeamName, favouriteTeam)
+      isTeamInFixture(f, badgeTeamName, divisionForStanding)
     ).length > 0
       ? fixtures.filter((f) =>
-        isTeamInFixture(f, badgeTeamName, favouriteTeam)
+        isTeamInFixture(f, badgeTeamName, divisionForStanding)
       )
       : fixtures.filter(
         (f) =>
-          (f.home && f.home.includes(favouriteTeam)) ||
-          (f.away && f.away.includes(favouriteTeam))
+          (f.home && (f.home.includes(favouriteTeam) || f.home.includes(badgeTeamName))) ||
+          (f.away && (f.away.includes(favouriteTeam) || f.away.includes(badgeTeamName)))
       );
   const forTeamAsc = [ ...allForTeam ].sort((a, b) => {
     const ta = parseDate(a);
@@ -304,14 +368,14 @@ export default function LandingScreen () {
     );
   }
 
-  if (error && standings.length === 0) {
+  if (displayError && standings.length === 0) {
     return (
       <ScrollView style={ styles.container } contentContainerStyle={ styles.centerContainer }>
         <Text
           style={ styles.errorText }
           accessibilityLiveRegion="polite"
         >
-          { error }
+          { displayError }
         </Text>
         <Text style={ styles.retryHint }>Pull down to retry</Text>
         <TouchableOpacity
@@ -329,7 +393,7 @@ export default function LandingScreen () {
     );
   }
 
-  if (!loading && !error && standings.length === 0 && fixtures.length === 0) {
+  if (!loading && !displayError && standings.length === 0 && fixtures.length === 0) {
     return (
       <ScrollView style={ styles.container } contentContainerStyle={ styles.centerContainer }>
         <Text style={ styles.emptyTitle }>No data loaded</Text>
@@ -361,11 +425,11 @@ export default function LandingScreen () {
         ref={ mainContentRef }
         style={ styles.logoBlock }
         accessible
-        accessibilityLabel={ `Home. Team: ${ favouriteTeam }.` }
+        accessibilityLabel={ `Home. Team: ${ homeTeamDisplayLabel || badgeTeamName }.` }
       >
         <TeamBadge teamName={ badgeTeamName } size={ LOGO_SIZE } />
-        { favouriteTeam && (
-          <Text style={ styles.ageGroupLabel }>{ favouriteTeam }</Text>
+        { (homeTeamDisplayLabel || (favouriteTeam && !/^\d+$/.test(favouriteTeam))) && (
+          <Text style={ styles.ageGroupLabel }>{ homeTeamDisplayLabel || favouriteTeam }</Text>
         ) }
       </View>
       { myStanding && (
@@ -454,6 +518,9 @@ export default function LandingScreen () {
           title={ todayFixtures.length > 0 ? "Today's fixtures" : 'Upcoming' }
         />
       ) }
+      { lastUpdated != null && (
+        <Text style={ styles.lastUpdated }>Last updated { formatLastUpdated(lastUpdated) }</Text>
+      ) }
     </ScrollView>
   );
 }
@@ -483,6 +550,7 @@ const styles = StyleSheet.create({
   retryHint: { color: '#666', marginTop: 8, fontSize: 12 },
   retryBtn: { marginTop: 16, paddingVertical: 12, paddingHorizontal: 24, backgroundColor: '#0a2463', borderRadius: 8 },
   retryBtnText: { color: '#FFD700', fontWeight: '600' },
+  lastUpdated: { color: '#666', fontSize: 12, marginTop: 16, marginBottom: 8 },
   logoBlock: {
     flexDirection: 'row',
     alignItems: 'center',

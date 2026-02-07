@@ -3,7 +3,7 @@
     "owner": "chiraagshah",
     "name": "St Albans City Academy - GotSport Tracker",
     "slug": "gotsport-tracker-app",
-    "version": "1.0.2",
+    "version": "1.1.0",
     "scheme": "gotsport",
     "newArchEnabled": true,
     "orientation": "portrait",
@@ -40,7 +40,7 @@
           "android": {
             "kotlinVersion": "1.9.24",
             "targetSdkVersion": 35,
-            "enableMinifyInReleaseBuilds": true,
+            "enableProguardInReleaseBuilds": true,
             "enableShrinkResourcesInReleaseBuilds": true
           }
         }

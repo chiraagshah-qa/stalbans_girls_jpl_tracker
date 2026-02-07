@@ -1,4 +1,10 @@
-import { getCachedGroupData, setCachedGroupData } from '../cache';
+import {
+  getCachedGroupData,
+  setCachedGroupData,
+  getCachedCrests,
+  setCachedCrests,
+  mergeCrestsIntoCache,
+} from '../cache';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Standing, ResultsData, Fixture } from '../scraper';
 
@@ -65,5 +71,75 @@ describe('setCachedGroupData', () => {
     expect(parsed.fixtures).toEqual(sampleFixtures);
     expect(parsed.leagueName).toBe('League');
     expect(typeof parsed.updatedAt).toBe('number');
+  });
+});
+
+describe('getCachedCrests', () => {
+  it('returns empty object when no cached crests', async () => {
+    mockGetItem.mockResolvedValue(null);
+    const result = await getCachedCrests();
+    expect(result).toEqual({});
+    expect(mockGetItem).toHaveBeenCalledWith('gotsport_crests');
+  });
+
+  it('returns empty object for invalid JSON', async () => {
+    mockGetItem.mockResolvedValue('not json');
+    const result = await getCachedCrests();
+    expect(result).toEqual({});
+  });
+
+  it('returns parsed crest map when valid', async () => {
+    const crests = { 'Team A': 'https://example.com/a.png', 'Team B': 'https://example.com/b.png' };
+    mockGetItem.mockResolvedValue(JSON.stringify(crests));
+    const result = await getCachedCrests();
+    expect(result).toEqual(crests);
+  });
+});
+
+describe('setCachedCrests', () => {
+  it('calls setItem with stringified crest map', async () => {
+    mockSetItem.mockResolvedValue(undefined);
+    const crests = { 'St Albans': 'https://example.com/crest.png' };
+    await setCachedCrests(crests);
+    expect(mockSetItem).toHaveBeenCalledWith('gotsport_crests', JSON.stringify(crests));
+  });
+});
+
+describe('mergeCrestsIntoCache', () => {
+  it('merges new crests into empty cache and returns merged map', async () => {
+    mockGetItem.mockResolvedValue(null);
+    mockSetItem.mockResolvedValue(undefined);
+    const newCrests = [
+      { name: 'Team A', crestUrl: 'https://example.com/a.png' },
+      { name: 'Team B', crestUrl: 'https://example.com/b.png' },
+    ];
+    const result = await mergeCrestsIntoCache(newCrests);
+    expect(result).toEqual({ 'Team A': 'https://example.com/a.png', 'Team B': 'https://example.com/b.png' });
+    expect(mockSetItem).toHaveBeenCalledWith('gotsport_crests', JSON.stringify(result));
+  });
+
+  it('merges new crests into existing cache', async () => {
+    const existing = { 'Team A': 'https://old.com/a.png' };
+    mockGetItem.mockResolvedValue(JSON.stringify(existing));
+    mockSetItem.mockResolvedValue(undefined);
+    const newCrests = [
+      { name: 'Team A', crestUrl: 'https://new.com/a.png' },
+      { name: 'Team B', crestUrl: 'https://example.com/b.png' },
+    ];
+    const result = await mergeCrestsIntoCache(newCrests);
+    expect(result['Team A']).toBe('https://new.com/a.png');
+    expect(result['Team B']).toBe('https://example.com/b.png');
+  });
+
+  it('skips entries with missing name or crestUrl', async () => {
+    mockGetItem.mockResolvedValue(null);
+    mockSetItem.mockResolvedValue(undefined);
+    const newCrests = [
+      { name: '', crestUrl: 'https://example.com/x.png' },
+      { name: 'Team B', crestUrl: '' },
+      { name: 'Team C', crestUrl: 'https://example.com/c.png' },
+    ];
+    const result = await mergeCrestsIntoCache(newCrests);
+    expect(result).toEqual({ 'Team C': 'https://example.com/c.png' });
   });
 });

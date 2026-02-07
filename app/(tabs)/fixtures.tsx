@@ -12,13 +12,15 @@ import { useFocusEffect } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   scrapeFixtures,
-  getGroupIdForTeam,
+  getTeamIdForSchedule,
   formatTimeForDisplay,
   parseFixtureDate,
   type Fixture,
 } from '../../lib/scraper';
-import { getCachedGroupData, setCachedGroupData } from '../../lib/cache';
+import { getCachedGroupData, setCachedGroupData, getGroupIdForTeam } from '../../lib/cache';
 import { getDisplayTeamName } from '../../lib/badges';
+import { formatLastUpdated } from '../../lib/format';
+import { useDelayedError } from '../../lib/useDelayedError';
 import { setAccessibilityFocus, announceForAccessibility } from '../../lib/accessibility';
 import { TeamBadge } from '../../components/TeamBadge';
 
@@ -75,7 +77,8 @@ export default function FixturesScreen () {
   const [ fixtures, setFixtures ] = useState<Fixture[]>([]);
   const [ loading, setLoading ] = useState(true);
   const [ refreshing, setRefreshing ] = useState(false);
-  const [ error, setError ] = useState<string | null>(null);
+  const [ displayError, setError ] = useDelayedError();
+  const [ lastUpdated, setLastUpdated ] = useState<number | null>(null);
   const fixturesContentRef = useRef<ScrollView>(null);
   const prevTabRef = useRef<FixturesTab>('upcoming');
 
@@ -102,12 +105,19 @@ export default function FixturesScreen () {
 
   const loadData = async (isRefresh = false) => {
     if (!favouriteTeam) return;
-    const groupId = getGroupIdForTeam(favouriteTeam);
+    const groupId = await getGroupIdForTeam(favouriteTeam);
+    if (!groupId) {
+      setError('Unable to load fixtures for this team. Use Settings → Refresh team list and try again.');
+      setLoading(false);
+      setRefreshing(false);
+      return;
+    }
     let hadCache = false;
     if (!isRefresh) {
       const cached = await getCachedGroupData(groupId);
       if (cached?.fixtures?.length) {
         setFixtures(cached.fixtures);
+        if (cached.updatedAt != null) setLastUpdated(cached.updatedAt);
         setError(null);
         hadCache = true;
       }
@@ -123,6 +133,7 @@ export default function FixturesScreen () {
         if (cached) {
           await setCachedGroupData(groupId, cached.standings, cached.results, fixturesFromDateAll, cached.leagueName);
         }
+        setLastUpdated(Date.now());
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load fixtures');
@@ -441,13 +452,13 @@ export default function FixturesScreen () {
               Loading fixtures…
             </Text>
           </View>
-        ) : error && fixtures.length === 0 ? (
+        ) : displayError && fixtures.length === 0 ? (
           <View style={ styles.centerContainer }>
             <Text
               style={ styles.errorText }
               accessibilityLiveRegion="polite"
             >
-              { error }
+              { displayError }
             </Text>
             <Text style={ styles.retryHint }>Pull down to retry</Text>
             <TouchableOpacity
@@ -480,6 +491,9 @@ export default function FixturesScreen () {
           </View>
         ) : (
           showUpcoming ? renderUpcomingContent() : renderPastContent()
+        ) }
+        { lastUpdated != null && fixtures.length > 0 && (
+          <Text style={ styles.lastUpdated }>Last updated { formatLastUpdated(lastUpdated) }</Text>
         ) }
       </ScrollView>
     </View>
@@ -528,6 +542,7 @@ const styles = StyleSheet.create({
   retryHint: { color: '#666', marginTop: 8, fontSize: 12 },
   retryBtn: { marginTop: 16, paddingVertical: 12, paddingHorizontal: 24, backgroundColor: '#0a2463', borderRadius: 8 },
   retryBtnText: { color: '#FFD700', fontWeight: '600' },
+  lastUpdated: { color: '#666', fontSize: 12, marginTop: 16, marginBottom: 8 },
   placeholder: { color: '#888', fontSize: 14, textAlign: 'center', paddingVertical: 24 },
   sectionBlock: { marginBottom: 28 },
   sectionTitle: {

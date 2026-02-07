@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import {
   StyleSheet,
   View,
@@ -10,34 +10,54 @@ import {
   Linking,
   Alert,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 import Constants from 'expo-constants';
 import { useFocusEffect } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { setAccessibilityFocus } from '../../lib/accessibility';
+import { getTeams, setCachedTeams } from '../../lib/cache';
+import type { ClubTeam } from '../../lib/scraper';
+import { getAgeGroupDisplayName } from '../../lib/scraper';
 
 const FAVOURITE_STORAGE_KEY = 'gotsport_favourite_team';
-const DIVISIONS = [ 'U14', 'U16' ] as const;
 
 export default function SettingsScreen () {
+  const [ teams, setTeamsState ] = useState<ClubTeam[]>([]);
+  const [ teamsLoading, setTeamsLoading ] = useState(true);
   const [ selectedTeam, setSelectedTeam ] = useState<string | null>(null);
   const [ disclaimerVisible, setDisclaimerVisible ] = useState(false);
   const disclaimerButtonRef = useRef<View>(null);
   const modalCloseButtonRef = useRef<View>(null);
   const appVersion = Constants.expoConfig?.version ?? '1.0.0';
 
-  const loadSavedTeam = async () => {
+  const loadTeams = useCallback(async (isRefresh = false) => {
+    if (isRefresh) setTeamsLoading(true);
+    try {
+      const list = await getTeams();
+      setTeamsState(list);
+    } catch {
+      setTeamsState([]);
+    } finally {
+      setTeamsLoading(false);
+    }
+  }, []);
+
+  const loadSavedTeam = useCallback(async () => {
     try {
       const saved = await AsyncStorage.getItem(FAVOURITE_STORAGE_KEY);
       setSelectedTeam(saved);
     } catch {
       setSelectedTeam(null);
     }
-  };
+  }, []);
 
-  useFocusEffect(() => {
-    loadSavedTeam();
-  });
+  useFocusEffect(
+    useCallback(() => {
+      loadSavedTeam();
+      loadTeams();
+    }, [ loadSavedTeam, loadTeams ])
+  );
 
   const prevModalVisibleRef = useRef(false);
   useEffect(() => {
@@ -53,11 +73,26 @@ export default function SettingsScreen () {
     }
   }, [ disclaimerVisible ]);
 
-  const saveTeam = async (division: string) => {
+  const saveTeam = async (team: ClubTeam) => {
     try {
-      await AsyncStorage.setItem(FAVOURITE_STORAGE_KEY, division);
-      setSelectedTeam(division);
+      await AsyncStorage.setItem(FAVOURITE_STORAGE_KEY, team.teamId);
+      setSelectedTeam(team.teamId);
     } catch { }
+  };
+
+  const refreshTeams = async () => {
+    setTeamsLoading(true);
+    try {
+      const { fetchClubsPage, parseClubsPage } = await import('../../lib/scraper');
+      const html = await fetchClubsPage();
+      const list = parseClubsPage(html);
+      if (list.length) await setCachedTeams(list);
+      setTeamsState(list);
+    } catch {
+      setTeamsState([]);
+    } finally {
+      setTeamsLoading(false);
+    }
   };
 
   const openAccessibilitySettings = async () => {
@@ -80,36 +115,70 @@ export default function SettingsScreen () {
     <ScrollView style={ styles.container } contentContainerStyle={ [ styles.content, styles.contentGrow ] }>
       <Text style={ styles.sectionTitle }>Team</Text>
       <Text style={ styles.subtitle }>
-        Choose your team (age group) to follow across the app.
+        Choose your team (age group) to follow across the app. Teams are loaded from GotSport.
       </Text>
-      <View style={ styles.divisionRow }>
-        { DIVISIONS.map((div) => {
-          const isSelected = selectedTeam === div;
-          return (
-            <TouchableOpacity
-              key={ div }
-              style={ [
-                styles.divisionOption,
-                isSelected && styles.divisionOptionSelected,
-              ] }
-              onPress={ () => saveTeam(div) }
-              activeOpacity={ 0.7 }
-              accessibilityRole="button"
-              accessibilityLabel={ `Select ${ div } team` }
-              accessibilityState={ { selected: isSelected } }
-            >
-              <Text
-                style={ [
-                  styles.divisionOptionText,
-                  isSelected && styles.divisionOptionTextSelected,
-                ] }
-              >
-                { div }
-              </Text>
-            </TouchableOpacity>
-          );
-        }) }
-      </View>
+      { teamsLoading && teams.length === 0 ? (
+        <View style={ styles.teamsLoading }>
+          <ActivityIndicator size="small" color="#0a2463" />
+          <Text style={ styles.teamsLoadingText }>Loading teams…</Text>
+        </View>
+      ) : teams.length === 0 ? (
+        <View style={ styles.teamsEmpty }>
+          <Text style={ styles.teamsEmptyText }>No teams found. Check connection and try again.</Text>
+          <TouchableOpacity
+            onPress={ refreshTeams }
+            style={ styles.refreshButton }
+            accessibilityRole="button"
+            accessibilityLabel="Refresh team list"
+          >
+            <Text style={ styles.refreshButtonText }>Refresh team list</Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <>
+          <View style={ styles.divisionRow }>
+            { teams.map((team) => {
+              const isSelected = selectedTeam === team.teamId;
+              const label = getAgeGroupDisplayName(team);
+              return (
+                <TouchableOpacity
+                  key={ team.teamId }
+                  style={ [
+                    styles.divisionOption,
+                    isSelected && styles.divisionOptionSelected,
+                  ] }
+                  onPress={ () => saveTeam(team) }
+                  activeOpacity={ 0.7 }
+                  accessibilityRole="button"
+                  accessibilityLabel={ `Select ${ label }` }
+                  accessibilityState={ { selected: isSelected } }
+                >
+                  <Text
+                    style={ [
+                      styles.divisionOptionText,
+                      isSelected && styles.divisionOptionTextSelected,
+                    ] }
+                    numberOfLines={ 1 }
+                  >
+                    { label }
+                  </Text>
+                </TouchableOpacity>
+              );
+            }) }
+          </View>
+          <TouchableOpacity
+            onPress={ refreshTeams }
+            disabled={ teamsLoading }
+            style={ styles.refreshLink }
+            accessibilityRole="button"
+            accessibilityLabel="Refresh team list from GotSport"
+          >
+            <Text style={ styles.refreshLinkText }>
+              { teamsLoading ? 'Refreshing…' : 'Refresh team list' }
+            </Text>
+          </TouchableOpacity>
+        </>
+      ) }
       <View style={ styles.accessibilitySection }>
         <Text style={ styles.sectionTitle }>Accessibility</Text>
         <Text style={ styles.subtitle }>
@@ -189,9 +258,32 @@ const styles = StyleSheet.create({
   disclaimerSpacer: { flexGrow: 1, minHeight: 24 },
   sectionTitle: { color: '#111', fontSize: 25, fontWeight: '700', marginBottom: 4, textTransform: 'uppercase' },
   subtitle: { color: '#666', fontSize: 14, marginBottom: 16 },
+  teamsLoading: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginBottom: 16,
+  },
+  teamsLoadingText: { color: '#666', fontSize: 14 },
+  teamsEmpty: { marginBottom: 16 },
+  teamsEmptyText: { color: '#666', fontSize: 14, marginBottom: 12 },
+  refreshButton: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#0a2463',
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+  },
+  refreshButtonText: { color: '#FFD700', fontWeight: '600', fontSize: 14 },
+  refreshLink: {
+    marginTop: 8,
+    alignSelf: 'flex-start',
+  },
+  refreshLinkText: { color: '#0a63d1', fontSize: 14 },
   divisionRow: {
     flexDirection: 'row',
     gap: 12,
+    flexWrap: 'wrap',
   },
   divisionOption: {
     flex: 1,
