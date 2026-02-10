@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useMemo } from 'react';
 import {
   StyleSheet,
   View,
@@ -19,6 +19,7 @@ import {
 } from '../../lib/scraper';
 import { getCachedGroupData, setCachedGroupData, getGroupIdForTeam } from '../../lib/cache';
 import { getDisplayTeamName } from '../../lib/badges';
+import { filterFixturesByTeam } from '../../lib/fixturesFilter';
 import { formatLastUpdated } from '../../lib/format';
 import { useDelayedError } from '../../lib/useDelayedError';
 import { setAccessibilityFocus, announceForAccessibility } from '../../lib/accessibility';
@@ -79,6 +80,8 @@ export default function FixturesScreen () {
   const [ refreshing, setRefreshing ] = useState(false);
   const [ displayError, setError ] = useDelayedError();
   const [ lastUpdated, setLastUpdated ] = useState<number | null>(null);
+  const [ selectedTeamFilter, setSelectedTeamFilter ] = useState<string>('ALL');
+  const [ filterOpen, setFilterOpen ] = useState(false);
   const fixturesContentRef = useRef<ScrollView>(null);
   const prevTabRef = useRef<FixturesTab>('upcoming');
 
@@ -147,6 +150,22 @@ export default function FixturesScreen () {
     loadFavourite();
   });
 
+  const teamFilterOptions = useMemo(() => {
+    const names = new Set<string>();
+    for (const f of fixtures) {
+      if (f.home) names.add(f.home);
+      if (f.away) names.add(f.away);
+    }
+    return Array.from(names).sort((a, b) =>
+      getDisplayTeamName(a).localeCompare(getDisplayTeamName(b), 'en-GB')
+    );
+  }, [ fixtures ]);
+
+  const filteredFixtures = useMemo(
+    () => filterFixturesByTeam(fixtures, selectedTeamFilter),
+    [ fixtures, selectedTeamFilter ]
+  );
+
   useEffect(() => {
     if (favouriteTeam) loadData();
   }, [ favouriteTeam ]);
@@ -179,10 +198,10 @@ export default function FixturesScreen () {
   todayStart.setHours(0, 0, 0, 0);
   const todayStartMs = todayStart.getTime();
 
-  const withDate = fixtures
+  const withDate = filteredFixtures
     .map((f) => ({ f, t: parseDate(f) }))
     .filter(({ t }) => !isNaN(t));
-  const noDateFixtures = fixtures
+  const noDateFixtures = filteredFixtures
     .filter((f) => isNaN(parseDate(f)))
     .map((f) => ({ f, t: NaN }));
 
@@ -201,8 +220,13 @@ export default function FixturesScreen () {
     items: { f: Fixture; t: number }[],
     sortAsc: boolean
   ): { dayStart: Date; fixtures: Fixture[] }[] {
+    // Sort items by timestamp so that:
+    // - Upcoming fixtures are earliest-first
+    // - Past fixtures are latest-first
+    const sortedItems = [ ...items ].sort((a, b) => (sortAsc ? a.t - b.t : b.t - a.t));
+
     const dayStarts = new Set<number>();
-    for (const { t } of items) {
+    for (const { t } of sortedItems) {
       dayStarts.add(getDayStart(new Date(t)).getTime());
     }
     const sortedDayStarts = Array.from(dayStarts).sort((a, b) => (sortAsc ? a - b : b - a));
@@ -210,7 +234,7 @@ export default function FixturesScreen () {
     for (const dayStartMs of sortedDayStarts) {
       const dayStart = new Date(dayStartMs);
       const dayEnd = new Date(dayStartMs + ONE_DAY_MS);
-      const dayFixtures = items
+      const dayFixtures = sortedItems
         .filter(({ t }) => {
           const fd = getDayStart(new Date(t));
           return fd.getTime() >= dayStart.getTime() && fd.getTime() < dayEnd.getTime();
@@ -328,12 +352,14 @@ export default function FixturesScreen () {
 
   function renderPastContent () {
     if (!hasPast) return <Text style={ styles.placeholder }>No past fixtures.</Text>;
+    // Show latest first: reverse days and fixtures within each day
+    const pastByDayLatestFirst = [ ...pastByDay ].reverse();
     return (
       <View style={ styles.sectionBlock }>
-        { pastByDay.map(({ dayStart, fixtures: dayFixtures }) => (
+        { pastByDayLatestFirst.map(({ dayStart, fixtures: dayFixtures }) => (
           <View key={ `past-${ dayStart.getTime() }` } style={ styles.daySection }>
             <Text style={ styles.dayTitle }>{ formatDayLabel(dayStart, todayStart, true) }</Text>
-            { dayFixtures.map((f, i) => (
+            { [ ...dayFixtures ].reverse().map((f, i) => (
               <View
                 key={ `${ f.home }-${ f.away }-${ i }` }
                 style={ styles.card }
@@ -371,7 +397,7 @@ export default function FixturesScreen () {
         )) }
         { pastNoDate.length > 0 && (
           <View style={ styles.daySection }>
-            { pastNoDate.map(({ f }, i) => (
+            { [ ...pastNoDate ].reverse().map(({ f }, i) => (
               <View
                 key={ `past-nd-${ f.home }-${ f.away }-${ i }` }
                 style={ styles.card }
@@ -435,6 +461,84 @@ export default function FixturesScreen () {
           <Text style={ [ styles.tabText, showPast && styles.tabTextActive ] }>past</Text>
         </TouchableOpacity>
       </View>
+      { fixtures.length > 0 && (
+        <View style={ styles.filterContainer }>
+          <TouchableOpacity
+            style={ styles.filterToggle }
+            onPress={ () => setFilterOpen((open) => !open) }
+            activeOpacity={ 0.7 }
+            accessibilityRole="button"
+            accessibilityLabel={
+              filterOpen
+                ? 'Hide team filter'
+                : 'Show team filter'
+            }
+            accessibilityState={ { expanded: filterOpen } }
+          >
+            <Text style={ styles.filterToggleLabel }>
+              { selectedTeamFilter === 'ALL'
+                ? 'All'
+                : getDisplayTeamName(selectedTeamFilter) }
+            </Text>
+            <Text style={ styles.filterToggleArrow } aria-hidden>
+              { filterOpen ? '▲' : '▼' }
+            </Text>
+          </TouchableOpacity>
+          { filterOpen && (
+            <View style={ styles.filterList }>
+              <TouchableOpacity
+                style={ [
+                  styles.filterOption,
+                  selectedTeamFilter === 'ALL' && styles.filterOptionActive,
+                ] }
+                onPress={ () => {
+                  setSelectedTeamFilter('ALL');
+                  setFilterOpen(false);
+                } }
+                activeOpacity={ 0.7 }
+                accessibilityRole="button"
+                accessibilityLabel="Show fixtures for all teams"
+                accessibilityState={ { selected: selectedTeamFilter === 'ALL' } }
+              >
+                <Text
+                  style={ [
+                    styles.filterOptionText,
+                    selectedTeamFilter === 'ALL' && styles.filterOptionTextActive,
+                  ] }
+                >
+                  All
+                </Text>
+              </TouchableOpacity>
+              { teamFilterOptions.map((name) => (
+                <TouchableOpacity
+                  key={ name }
+                  style={ [
+                    styles.filterOption,
+                    selectedTeamFilter === name && styles.filterOptionActive,
+                  ] }
+                  onPress={ () => {
+                    setSelectedTeamFilter(name);
+                    setFilterOpen(false);
+                  } }
+                  activeOpacity={ 0.7 }
+                  accessibilityRole="button"
+                  accessibilityLabel={ `Show fixtures for ${ getDisplayTeamName(name) }` }
+                  accessibilityState={ { selected: selectedTeamFilter === name } }
+                >
+                  <Text
+                    style={ [
+                      styles.filterOptionText,
+                      selectedTeamFilter === name && styles.filterOptionTextActive,
+                    ] }
+                  >
+                    { getDisplayTeamName(name) }
+                  </Text>
+                </TouchableOpacity>
+              )) }
+            </View>
+          ) }
+        </View>
+      ) }
       <ScrollView
         ref={ fixturesContentRef }
         style={ styles.scroll }
@@ -530,6 +634,58 @@ const styles = StyleSheet.create({
   tabTextActive: {
     color: '#0a2463',
     textTransform: 'uppercase',
+  },
+  filterContainer: {
+    paddingHorizontal: 12,
+    paddingBottom: 4,
+  },
+  filterToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#ccc',
+    backgroundColor: '#fff',
+  },
+  filterToggleLabel: {
+    color: '#000000',
+    fontSize: 18,
+    fontWeight: '700',
+    flex: 1,
+    textAlign: 'center',
+  },
+  filterToggleArrow: {
+    color: '#000000',
+    fontSize: 16,
+    marginLeft: 8,
+  },
+  filterList: {
+    marginTop: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#ddd',
+    backgroundColor: '#fff',
+    overflow: 'hidden',
+  },
+  filterOption: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    alignItems: 'center',
+  },
+  filterOptionActive: {
+    backgroundColor: '#0a2463',
+  },
+  filterOptionText: {
+    color: '#333',
+    fontSize: 13,
+    textAlign: 'center',
+  },
+  filterOptionTextActive: {
+    color: '#FFD700',
+    fontWeight: '600',
   },
   scroll: { flex: 1 },
   content: { padding: 16, paddingBottom: 24 },

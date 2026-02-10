@@ -2,7 +2,7 @@
 
 A React Native (Expo) app for tracking football scores, league table, and fixtures from [GotSport](https://system.gotsport.com). Built for St Albans City FC Academy supporters (U14/U16).
 
-**Version:** 1.1.0  
+**Version:** 1.2.0  
 **Note:** This app is a personal hobby project and is not official.
 
 ## Features
@@ -10,7 +10,7 @@ A React Native (Expo) app for tracking football scores, league table, and fixtur
 - **Home** – League position, last result, next fixture, today’s and upcoming fixtures
 - **Table** – Full league table (P, W, D, L, GF, GA, GD, PTS) with team crests
 - **Results** – Recent results with opponent crests
-- **Fixtures** – Fixtures for the next 15 days with home/away crests and scores
+- **Fixtures** – Upcoming and past fixtures with home/away crests and scores; filter by team (dropdown); past fixtures show latest first
 - **Settings** – Choose your team from the club’s list (loaded from GotSport); selection and data are cached locally
 
 Team list is loaded from the GotSport clubs page for the event. Club crests are loaded from schedule/results pages and cached; none are bundled in the app. Errors are shown only after a short delay so brief loading states don’t flash as failures.
@@ -101,7 +101,7 @@ app/                 # Expo Router app entry and tabs
   (tabs)/            # Home, Table, Results, Fixtures, Settings
   docs/              # index.html, privacy-policy (web-viewable docs)
 components/          # TeamBadge, ScheduleMatchList
-lib/                 # badges, cache, scraper, CrestContext, useDelayedError
+lib/                 # badges, cache, scraper, CrestContext, useDelayedError, format, fixturesFilter
 assets/              # App icon, splash; crests come from GotSport (cached)
 patches/             # Gradle/build fixes (expo-font, expo-asset)
 scripts/             # apply-expo-gradle-fix.js, etc.
