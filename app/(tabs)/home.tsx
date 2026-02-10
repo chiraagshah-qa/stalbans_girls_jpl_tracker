@@ -24,6 +24,7 @@ import {
   type ClubTeam,
 } from '../../lib/scraper';
 import { getCachedGroupData, setCachedGroupData, getTeams, getGroupIdForTeam } from '../../lib/cache';
+import { getEventId } from '../../lib/eventConfig';
 import { useCrests } from '../../lib/CrestContext';
 import { getDisplayTeamName } from '../../lib/badges';
 import { formatLastUpdated } from '../../lib/format';
@@ -147,8 +148,8 @@ export default function LandingScreen () {
     setError(null);
     try {
       const [ groupData, fixturesData ] = await Promise.all([
-        scrapeGroup(undefined, g, teamId),
-        scrapeFixtures(undefined, g),
+        scrapeGroup(getEventId(), g, teamId),
+        scrapeFixtures(getEventId(), g),
       ]);
       setStandings(groupData.standings);
       setFixtures(fixturesData);

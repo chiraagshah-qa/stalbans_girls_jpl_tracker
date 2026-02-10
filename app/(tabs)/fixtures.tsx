@@ -18,6 +18,7 @@ import {
   type Fixture,
 } from '../../lib/scraper';
 import { getCachedGroupData, setCachedGroupData, getGroupIdForTeam } from '../../lib/cache';
+import { getEventId } from '../../lib/eventConfig';
 import { getDisplayTeamName } from '../../lib/badges';
 import { filterFixturesByTeam } from '../../lib/fixturesFilter';
 import { formatLastUpdated } from '../../lib/format';
@@ -129,7 +130,7 @@ export default function FixturesScreen () {
     else if (!hadCache) setLoading(true);
     setError(null);
     try {
-      const fixturesFromDateAll = await scrapeFixtures(undefined, groupId);
+      const fixturesFromDateAll = await scrapeFixtures(getEventId(), groupId);
       if (fixturesFromDateAll.length > 0) {
         setFixtures(fixturesFromDateAll);
         const cached = await getCachedGroupData(groupId);

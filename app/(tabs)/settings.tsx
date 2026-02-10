@@ -17,6 +17,7 @@ import { useFocusEffect } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { setAccessibilityFocus } from '../../lib/accessibility';
 import { getTeams, setCachedTeams } from '../../lib/cache';
+import { getEventId } from '../../lib/eventConfig';
 import type { ClubTeam } from '../../lib/scraper';
 import { getAgeGroupDisplayName } from '../../lib/scraper';
 
@@ -84,7 +85,7 @@ export default function SettingsScreen () {
     setTeamsLoading(true);
     try {
       const { fetchClubsPage, parseClubsPage } = await import('../../lib/scraper');
-      const html = await fetchClubsPage();
+      const html = await fetchClubsPage(getEventId());
       const list = parseClubsPage(html);
       if (list.length) await setCachedTeams(list);
       setTeamsState(list);

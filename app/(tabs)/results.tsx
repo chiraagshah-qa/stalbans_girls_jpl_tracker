@@ -11,6 +11,7 @@ import { useFocusEffect } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { scrapeGroup, getTeamIdForSchedule, type ResultsData, type Fixture } from '../../lib/scraper';
 import { getCachedGroupData, setCachedGroupData, getGroupIdForTeam, getTeams } from '../../lib/cache';
+import { getEventId } from '../../lib/eventConfig';
 import { useCrests } from '../../lib/CrestContext';
 import { useDelayedError } from '../../lib/useDelayedError';
 import { getDisplayTeamName } from '../../lib/badges';
@@ -63,7 +64,7 @@ export default function ResultsScreen () {
     else setLoading(true);
     setError(null);
     try {
-      const data = await scrapeGroup(undefined, groupId, teamId);
+      const data = await scrapeGroup(getEventId(), groupId, teamId);
       setResults(data.results);
       setFixtures(data.fixtures);
       await setCachedGroupData(groupId, data.standings, data.results, data.fixtures, data.leagueName);

@@ -6,6 +6,7 @@ import {
   fetchTeamSchedulePage,
   parseSchedulePageForGroupId,
 } from './scraper';
+import { getEventId } from './eventConfig';
 
 const CACHE_PREFIX = 'gotsport_group_';
 const CACHE_KEY = (groupId: string) => `${CACHE_PREFIX}${groupId}`;
@@ -82,7 +83,7 @@ export async function getTeams(): Promise<ClubTeam[]> {
   try {
     const cached = await getCachedTeams();
     if (cached?.length) return cached;
-    const html = await fetchClubsPage();
+    const html = await fetchClubsPage(getEventId());
     const teams = parseClubsPage(html);
     if (teams.length) await setCachedTeams(teams);
     return teams;
@@ -118,7 +119,7 @@ export async function getGroupIdForTeam(teamId: string | null): Promise<string |
   const cached = await getCachedGroupIdForTeam(teamId);
   if (cached) return cached;
   try {
-    const html = await fetchTeamSchedulePage(undefined, teamId);
+    const html = await fetchTeamSchedulePage(getEventId(), teamId);
     const groupId = parseSchedulePageForGroupId(html);
     if (groupId) await setCachedGroupIdForTeam(teamId, groupId);
     return groupId;
